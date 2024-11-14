@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, APIRouter
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.schemas.message import MessageRequest, MessageResponse
@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.post("/process-message", response_model=MessageResponse)
-async def process_message(request: MessageRequest, db: AsyncSession = Depends(get_db)):
+async def process_message(request: MessageRequest, db: Session = Depends(get_db)):
     try:
         query_executor = MessageProcessor(db)
         response = await query_executor.execute_query(request.message)
