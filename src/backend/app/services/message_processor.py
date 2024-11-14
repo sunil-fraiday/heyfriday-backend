@@ -1,6 +1,9 @@
 import re
+import traceback
+import logging
 from typing import Dict, List
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.schemas.message import MessageResponse
 
@@ -91,54 +94,14 @@ class MessageProcessor:
         ORDER BY ga_date DESC;
         """
 
-    def _format_response(self, query_type: str, data: List[Dict]) -> str:
-        if not data:
-            return "No data found for the specified period."
-
-        if query_type == "sessions":
-            total_sessions = sum(row["total_sessions"] for row in data)
-            return f"Total sessions in the last 7 days: {total_sessions:,.0f}\n\nDaily breakdown:\n" + "\n".join(
-                f"{row['ga_date']}: {row['total_sessions']:,.0f} sessions" for row in data
-            )
-
-        elif query_type == "users":
-            total_users = sum(row["total_users"] for row in data)
-            active_users = sum(row["active_users"] for row in data)
-            return (
-                f"Total users in the last 7 days: {total_users:,.0f}\nActive users: {active_users:,.0f}\n\nDaily breakdown:\n"
-                + "\n".join(
-                    f"{row['ga_date']}: {row['total_users']:,.0f} total, {row['active_users']:,.0f} active"
-                    for row in data
-                )
-            )
-
-        elif query_type == "sessions_per_user":
-            avg_spu = sum(row["avg_sessions_per_user"] for row in data) / len(data)
-            return f"Average sessions per user in the last 7 days: {avg_spu:.2f}\n\nDaily breakdown:\n" + "\n".join(
-                f"{row['ga_date']}: {row['avg_sessions_per_user']:.2f} sessions/user" for row in data
-            )
-
-        elif query_type == "channel_breakdown":
-            return "Channel Distribution:\n\n" + "\n".join(
-                f"{row['defaultChannelGroup']}:\n"
-                + f"  Sessions: {row['total_sessions']:,.0f}\n"
-                + f"  Users: {row['total_users']:,.0f}\n"
-                + f"  Avg Sessions/User: {row['avg_sessions_per_user']:.2f}"
-                for row in data
-            )
-
-        return str(data)
-
     async def execute_query(self, message: str) -> MessageResponse:
         try:
-            query_type = None
             query_func = None
 
             # Find matching query pattern
             for pattern, func in self.query_patterns.items():
                 if re.search(pattern, message.lower()):
                     query_func = func
-                    query_type = pattern.split("|")[0].strip("()")
                     break
 
             if not query_func:
@@ -148,13 +111,11 @@ class MessageProcessor:
 
             # Execute query
             query = query_func()
-            result = await self.db.execute(query)
+            result = self.db.execute(text(query))
             data = [dict(row) for row in result.mappings().all()]
 
-            # Format response
-            response_message = self._format_response(query_type, data)
-
-            return MessageResponse(message=response_message, data=data)
+            return MessageResponse(message = "Here is the result for your question", sql_data=data)
 
         except Exception as e:
+            logging.error(str(e) + traceback.format_exc())
             return MessageResponse(message=f"Error executing query: {str(e)}", data=None)

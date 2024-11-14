@@ -5,14 +5,10 @@ from typing import Optional
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
-print(PROJECT_ROOT)
-
-print(f"Looking for .env at: {PROJECT_ROOT / '.env'}")
-
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / '.env', env_file_encoding='utf-8', extra = "ignore")
-    
+    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env", env_file_encoding="utf-8", extra="ignore")
+
     PROJECT_NAME: str = "Slack Bot Backend"
     VERSION: str = "0.0.1"
 
@@ -31,6 +27,4 @@ class Settings(BaseSettings):
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 
-
 settings = Settings()
-

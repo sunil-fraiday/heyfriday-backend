@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, List
 
 
 class MessageRequest(BaseModel):
@@ -11,13 +11,6 @@ class MessageRequest(BaseModel):
 
 
 class MessageResponse(BaseModel):
-    message: str
+    message: Optional[str] = None
+    sql_data: Optional[List[Dict]] = None
     image_url: Optional[str] = None
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "message": "Here's the analysis you requested...",
-                "image_url": "https://example.com/image.png",
-            }
-        }
