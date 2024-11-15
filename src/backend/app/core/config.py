@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = "5432"
 
     DATABASE_URL: Optional[str] = None
+    TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
 
     @property
     def sync_database_url(self) -> str:
