@@ -19,12 +19,12 @@ async def create_chat_message(message_data: ChatMessageCreate):
     # Get or create chat session
     if message_data.session_id:
         try:
-            session = ChatSession.objects.get(id=message_data.session_id)
+            session = ChatSession.objects.get(session_id=message_data.session_id)
         except me.DoesNotExist:
-            session = ChatSession()
+            session = ChatSession(session_id=message_data.session_id)
             session.save()
     else:
-        session = ChatSession()
+        session = ChatSession(session_id=message_data.session_id)
         session.save()
 
     attachments = []
@@ -60,7 +60,7 @@ async def create_chat_message(message_data: ChatMessageCreate):
 @router.get("/{session_id}/messages", response_model=List[ChatMessageResponse])
 async def get_session_messages(session_id: str):
     try:
-        session = ChatSession.objects.get(id=session_id)
+        session = ChatSession.objects.get(session_id=session_id)
     except me.DoesNotExist:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -86,7 +86,7 @@ async def get_session_messages(session_id: str):
 @router.put("/{session_id}/messages/{message_id}", response_model=ChatMessageResponse)
 async def update_chat_message(message_id: str, message_data: ChatMessageCreate):
     try:
-        chat_message = ChatMessage.objects.get(id=message_id)
+        chat_message = ChatMessage.objects.get(session_id=message_id)
     except me.DoesNotExist:
         raise HTTPException(status_code=404, detail="Message not found")
 

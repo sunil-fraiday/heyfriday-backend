@@ -7,6 +7,7 @@ from mongoengine import Document, EmbeddedDocument, fields
 
 
 class ChatSession(Document):
+    session_id = fields.StringField(required=False)
     created_at = fields.DateTimeField(default=datetime.utcnow)
     updated_at = fields.DateTimeField(default=datetime.utcnow)
     participants = fields.ListField(fields.StringField(), default=[])
