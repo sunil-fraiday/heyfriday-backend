@@ -12,7 +12,7 @@ router = APIRouter()
 async def process_message(request: MessageRequest, db: Session = Depends(get_db)):
     try:
         query_executor = MessageProcessor(db)
-        response = await query_executor.execute_query(request.message)
+        response = query_executor.execute_query(request.message)
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

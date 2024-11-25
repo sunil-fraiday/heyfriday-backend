@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Dict, List
 
-
+# Old models remove them after refactoring
 class MessageRequest(BaseModel):
     message: str
     user: str

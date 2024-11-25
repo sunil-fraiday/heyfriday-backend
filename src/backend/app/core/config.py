@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
     POSTGRES_PORT: str = "5432"
 
+    MONGODB_URI: str
+
     DATABASE_URL: Optional[str] = None
     TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
 
