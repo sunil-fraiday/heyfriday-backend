@@ -1,0 +1,1 @@
+BOT_SENDER_NAME = "Fraiday Bot"

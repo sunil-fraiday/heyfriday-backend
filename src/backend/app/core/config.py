@@ -22,6 +22,14 @@ class Settings(BaseSettings):
 
     DATABASE_URL: Optional[str] = None
     TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
+    AI_SERVICE_URL: str = TEXT_TO_SQL_SERVICE_URL
+
+    # Celery configurations
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
+    CELERY_BROKER_URL: str = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
     @property
     def sync_database_url(self) -> str:

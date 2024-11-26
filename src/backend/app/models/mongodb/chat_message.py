@@ -14,6 +14,12 @@ class MessageCategory(str, Enum):
     WARNING = "warning"
 
 
+class SenderType(str, Enum):
+    USER = "user"
+    BOT = "bot"
+    SYSTEM = "system"
+
+
 class Attachment(EmbeddedDocument):
     file_name = fields.StringField(required=True)
     file_type = fields.StringField(required=True)
@@ -26,6 +32,9 @@ class ChatMessage(Document):
     updated_at = fields.DateTimeField(default=datetime.utcnow)
     sender = fields.StringField()
     sender_name = fields.StringField()
+    sender_type = fields.StringField(
+        choices=[sender_type.value for sender_type in SenderType], default=SenderType.USER
+    )
     session = fields.ReferenceField(ChatSession, required=True)
     text = fields.StringField(required=True)
     attachments = fields.EmbeddedDocumentListField(Attachment)
@@ -33,6 +42,6 @@ class ChatMessage(Document):
     category = fields.StringField(
         choices=[cat.value for cat in MessageCategory], default=MessageCategory.MESSAGE.value
     )
-    edit = fields.BooleanField(default=False)
 
+    edit = fields.BooleanField(default=False)
     meta = {"collection": "chat_messages", "indexes": ["created_at", "session", ("session", "created_at")]}
