@@ -11,7 +11,7 @@ def get_celery_settings():
         # "result_backend": settings.CELERY_RESULT_BACKEND,
         "task_annotations": {"*": {"rate_limit": "25/s"}},
         "task_routes": {
-            "app.tasks.*": {"queue": "default"},
+            "app.tasks.*": {"queue": "celery"},
         },
     }
 
@@ -24,7 +24,7 @@ def create_celery_app() -> Celery:
     celery_app.conf.update(celery_settings)
 
     # Auto-discover tasks
-    celery_app.autodiscover_tasks(["src.backend.app.tasks"])
+    celery_app.autodiscover_tasks(["app.tasks"])
 
     return celery_app
 

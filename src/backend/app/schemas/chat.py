@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.mongodb.chat_message import MessageCategory, ChatMessage
 
@@ -30,6 +30,7 @@ class ChatMessageResponse(BaseModel):
     sender_name: Optional[str]
     session_id: str
     text: str
+    sql_data: Optional[dict] = Field(default_factory=dict)
     attachments: Optional[List[AttachmentCreate]]
     category: MessageCategory
     edit: bool = False
@@ -42,8 +43,9 @@ class ChatMessageResponse(BaseModel):
             updated_at=chat_message.updated_at,
             sender=chat_message.sender,
             sender_name=chat_message.sender_name,
-            session_id=str(chat_message.session.id),
+            session_id=str(chat_message.session.session_id),
             text=chat_message.text,
+            sql_data=chat_message.sql_data,
             attachments=(
                 [AttachmentCreate(**a) for a in chat_message.attachments] if chat_message.attachments else None
             ),

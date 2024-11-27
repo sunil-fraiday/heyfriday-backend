@@ -7,12 +7,15 @@ from celery.utils.log import get_task_logger
 
 import app.constants as constants
 from app.core.config import settings
+from app.db.mongodb_utils import connect_to_db, disconnect_from_db
 from app.schemas.chat import ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, SenderType
 from app.services.message_processor import MessageProcessor
 
 
 logger = get_task_logger(__name__)
+
+connect_to_db()
 
 
 @shared_task(
@@ -25,6 +28,7 @@ logger = get_task_logger(__name__)
 )
 def process_chat_message(self, message_id: str):
     try:
+
         chat_message: ChatMessage = ChatMessage.objects.get(id=message_id)
         message_data = chat_message.text
 
@@ -36,15 +40,17 @@ def process_chat_message(self, message_id: str):
             sender=constants.BOT_SENDER_NAME,
             sender_name=constants.BOT_SENDER_NAME,
             sender_type=SenderType.BOT,
-            text=processed_message.text,
-            sql_data=processed_message.sql_data,
+            text=processed_message.data.answer.answer_text,
+            sql_data={"sql_data": processed_message.data.answer.answer_data},
         )
         ai_message.save()
 
         logger.info(f"Processed message: {chat_message.id}")
-
+        
+        payload = ChatMessageResponse.from_chat_message(ai_message).model_dump(mode="json")
+        logger.info(f"Payload: {payload}")
         response: Response = requests.post(
-            settings.AI_SERVICE_URL, payload=ChatMessageResponse.from_chat_message(ai_message).model_dump()
+            settings.SWYT_WEBHOOK_URL, json=payload
         )
         response.raise_for_status()
 

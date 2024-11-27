@@ -8,12 +8,13 @@ from fastapi import HTTPException, APIRouter
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, AttachmentCreate
 from app.models.mongodb.chat_message import ChatMessage, Attachment, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
+from app.core.config import settings
+from app.tasks import process_chat_message
 
 router = APIRouter(prefix="/sessions", tags=["Chat Messages"])
 
+
 # TODO: Refactor all API logic into services
-
-
 @router.post("/{session_id}/messages", response_model=ChatMessageResponse)
 async def create_chat_message(message_data: ChatMessageCreate):
     # Get or create chat session
@@ -42,6 +43,8 @@ async def create_chat_message(message_data: ChatMessageCreate):
         category=message_data.category.value,
     )
     chat_message.save()
+    async_id = process_chat_message.delay(str(chat_message.id))
+    print(async_id)
 
     return ChatMessageResponse(
         id=str(chat_message.id),
