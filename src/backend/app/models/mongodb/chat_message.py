@@ -1,10 +1,9 @@
-from typing import List, Optional, Union
 from enum import Enum
-from datetime import datetime
 
 from mongoengine import Document, EmbeddedDocument, fields
 
 from app.models.mongodb.chat_session import ChatSession
+from .utils import datetime_utc_now
 
 
 class MessageCategory(str, Enum):
@@ -28,8 +27,8 @@ class Attachment(EmbeddedDocument):
 
 
 class ChatMessage(Document):
-    created_at = fields.DateTimeField(default=datetime.utcnow)
-    updated_at = fields.DateTimeField(default=datetime.utcnow)
+    created_at = fields.DateTimeField(default=datetime_utc_now)
+    updated_at = fields.DateTimeField(default=datetime_utc_now)
     sender = fields.StringField()
     sender_name = fields.StringField()
     sender_type = fields.StringField(

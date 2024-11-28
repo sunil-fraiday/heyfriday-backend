@@ -1,15 +1,11 @@
-from typing import List, Optional, Union
-from enum import Enum
-from datetime import datetime
-
-import mongoengine as me
-from mongoengine import Document, EmbeddedDocument, fields
+from mongoengine import Document, fields
+from .utils import datetime_utc_now
 
 
 class ChatSession(Document):
     session_id = fields.StringField(required=False)
-    created_at = fields.DateTimeField(default=datetime.utcnow)
-    updated_at = fields.DateTimeField(default=datetime.utcnow)
+    created_at = fields.DateTimeField(default=datetime_utc_now)
+    updated_at = fields.DateTimeField(default=datetime_utc_now)
     participants = fields.ListField(fields.StringField(), default=[])
     active = fields.BooleanField(default=True)
 
