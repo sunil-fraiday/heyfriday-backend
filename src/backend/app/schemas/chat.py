@@ -18,7 +18,7 @@ class ChatMessageCreate(BaseModel):
     session_id: Optional[str] = None
     text: str
     attachments: Optional[List[AttachmentCreate]] = None
-    sql_data: Optional[dict] = None
+    data: Optional[dict] = None
     category: MessageCategory = MessageCategory.MESSAGE
 
 
@@ -45,7 +45,7 @@ class ChatMessageResponse(BaseModel):
             sender_name=chat_message.sender_name,
             session_id=str(chat_message.session.session_id),
             text=chat_message.text,
-            sql_data=chat_message.sql_data,
+            data=chat_message.data,
             attachments=(
                 [AttachmentCreate(**a) for a in chat_message.attachments] if chat_message.attachments else None
             ),
