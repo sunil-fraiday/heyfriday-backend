@@ -1,9 +1,9 @@
 from enum import Enum
 
-from mongoengine import Document, EmbeddedDocument, fields
+from mongoengine import EmbeddedDocument, fields
 
 from app.models.mongodb.chat_session import ChatSession
-from .utils import datetime_utc_now
+from .base import BaseDocument
 
 
 class MessageCategory(str, Enum):
@@ -26,9 +26,7 @@ class Attachment(EmbeddedDocument):
     file_url = fields.StringField(required=True)
 
 
-class ChatMessage(Document):
-    created_at = fields.DateTimeField(default=datetime_utc_now)
-    updated_at = fields.DateTimeField(default=datetime_utc_now)
+class ChatMessage(BaseDocument):
     sender = fields.StringField()
     sender_name = fields.StringField()
     sender_type = fields.StringField(
@@ -37,7 +35,7 @@ class ChatMessage(Document):
     session = fields.ReferenceField(ChatSession, required=True)
     text = fields.StringField(required=True)
     attachments = fields.EmbeddedDocumentListField(Attachment)
-    sql_data = fields.DictField()
+    data = fields.DictField()
     category = fields.StringField(
         choices=[cat.value for cat in MessageCategory], default=MessageCategory.MESSAGE.value
     )
