@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     AI_SERVICE_URL: str = TEXT_TO_SQL_SERVICE_URL
     SWYT_WEBHOOK_URL: Optional[str] = None
 
+    AWS_BEDROCK_ACCESS_KEY_ID: str
+    AWS_BEDROCK_SECRET_ACCESS_KEY: str
+    AWS_BEDROCK_REGION :str
+    AWS_BEDROCK_RUNTIME: Optional[str] = "bedrock-runtime"
+
     # Celery configurations
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379

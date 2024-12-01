@@ -14,14 +14,12 @@ class IntentClassificationService:
         access_key_id: str,
         secret_access_key: str,
         model_name: str,
-        resource_scope_mapping: dict,
     ):
         self.aws_runtime = aws_runtime
         self.region_name = region_name
         self.access_key_id = access_key_id
         self.secret_access_key = secret_access_key
         self.model_name = model_name
-        self.resource_scope_mapping = resource_scope_mapping
 
     def classify_with_bedrock(self, messages, resource_scope_mapping):
         prompt = (
@@ -34,7 +32,7 @@ class IntentClassificationService:
         )
 
         for i, message in enumerate(messages):
-            prompt += f"{i + 1}. {message['content']}\n"
+            prompt += f"{i + 1}. {message}\n"
 
         prompt += (
             "\nFor each message, identify the resources and the scopes required to handle it. "

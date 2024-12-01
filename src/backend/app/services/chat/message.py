@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
-from app.tasks import process_chat_message
+from app.tasks import trigger_chat_workflow
 
 
 class ChatMessageService:
@@ -32,12 +32,11 @@ class ChatMessageService:
             sender=message_data.sender,
             sender_name=message_data.sender_name,
             attachments=attachments,
-            sql_data=message_data.sql_data,
             category=message_data.category.value,
         )
         chat_message.save()
 
-        process_chat_message.delay(str(chat_message.id))
+        trigger_chat_workflow(message_id=str(chat_message.id))
 
         return ChatMessageResponse.from_chat_message(chat_message)
 
@@ -53,7 +52,11 @@ class ChatMessageService:
         if id:
             query["id"] = id
         if session_id:
-            query["session__session_id"] = session_id
+            try:
+                chat_session = ChatSession.objects.get(session_id=session_id)
+            except me.DoesNotExist as e:
+                raise HTTPException(status_code=404, detail="Chat Session not found")
+            query["session"] = chat_session.id
         if user_id:
             query["sender"] = user_id
         if sender_type:

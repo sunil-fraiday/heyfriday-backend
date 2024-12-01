@@ -1,1 +1,1 @@
-from .chat import process_chat_message
+from .chat import trigger_chat_workflow

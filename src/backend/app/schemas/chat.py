@@ -30,7 +30,7 @@ class ChatMessageResponse(BaseModel):
     sender_name: Optional[str]
     session_id: str
     text: str
-    sql_data: Optional[dict] = Field(default_factory=dict)
+    data: Optional[dict] = Field(default_factory=dict)
     attachments: Optional[List[AttachmentCreate]]
     category: MessageCategory
     edit: bool = False
