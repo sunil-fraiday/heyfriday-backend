@@ -1,1 +1,1 @@
-BOT_SENDER_NAME = "Fraiday Bot"
+BOT_SENDER_NAME = "fraiday-bot"
