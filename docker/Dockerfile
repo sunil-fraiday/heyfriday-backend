@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-WORKDIR /app
+WORKDIR /opt/app
 
 ENV PYTHONPATH=/app
 
@@ -14,6 +14,8 @@ COPY pyproject.toml .
 
 RUN pip install -r requirements.txt
 
-COPY src/backend/ .
+COPY src/backend/app .
 
-CMD ["uvicorn", "app.main:app", "--workers", "4", "--host", "0.0.0.0", "--port", "8000"]
+WORKDIR /opt
+
+CMD ["uvicorn", "app.main:app", "--workers", "3", "--host", "0.0.0.0", "--port", "8000"]

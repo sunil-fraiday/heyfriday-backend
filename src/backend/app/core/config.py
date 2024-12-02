@@ -27,21 +27,26 @@ class Settings(BaseSettings):
 
     AWS_BEDROCK_ACCESS_KEY_ID: str
     AWS_BEDROCK_SECRET_ACCESS_KEY: str
-    AWS_BEDROCK_REGION :str
+    AWS_BEDROCK_REGION: str
     AWS_BEDROCK_RUNTIME: Optional[str] = "bedrock-runtime"
 
     # Celery configurations
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
-
-    CELERY_BROKER_URL: str = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_DB: int
+    REDIS_PASSWORD: Optional[str] = None
 
     @property
     def sync_database_url(self) -> str:
         if self.DATABASE_URL:
             return self.DATABASE_URL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
+    @property
+    def CELERY_BROKER_URL(self) -> str:
+        if self.REDIS_PASSWORD: 
+            return f"rediss://default:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
 settings = Settings()
