@@ -82,7 +82,7 @@ def generate_ai_response_task(self, session_data: dict):
         message = ChatMessage.objects.get(id=message_id)
 
         processor = AIService()
-        processed_message = processor.get_response(message.text)
+        processed_message = processor.get_response(message_id=message_id)
 
         ai_message = ChatMessage(
             session=message.session,

@@ -16,7 +16,7 @@ async def create_message(message_data: ChatMessageCreate):
 async def get_messages(
     session_id: Optional[str] = Query(None), user_id: Optional[str] = Query(None), last_n: Optional[int] = Query(None)
 ):
-    return ChatMessageService.get_messages(session_id=session_id, user_id=user_id, last_n=last_n)
+    return ChatMessageService.list_messages(session_id=session_id, user_id=user_id, last_n=last_n)
 
 
 @router.put("/{message_id}", response_model=ChatMessageResponse)

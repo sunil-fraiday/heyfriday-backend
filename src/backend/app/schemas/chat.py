@@ -26,8 +26,9 @@ class ChatMessageResponse(BaseModel):
     id: str
     created_at: datetime
     updated_at: datetime
-    sender: Optional[str]
+    sender_id: Optional[str]
     sender_name: Optional[str]
+    sender_type: Optional[str]
     session_id: str
     text: str
     data: Optional[dict] = Field(default_factory=dict)
@@ -41,7 +42,7 @@ class ChatMessageResponse(BaseModel):
             id=str(chat_message.id),
             created_at=chat_message.created_at,
             updated_at=chat_message.updated_at,
-            sender=chat_message.sender,
+            sender_id=chat_message.sender,
             sender_name=chat_message.sender_name,
             session_id=str(chat_message.session.session_id),
             text=chat_message.text,
@@ -50,5 +51,6 @@ class ChatMessageResponse(BaseModel):
                 [AttachmentCreate(**a) for a in chat_message.attachments] if chat_message.attachments else None
             ),
             category=MessageCategory(chat_message.category),
+            sender_type=chat_message.sender_type,
             edit=chat_message.edit,
         )

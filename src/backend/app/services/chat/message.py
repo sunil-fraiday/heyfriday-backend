@@ -41,12 +41,13 @@ class ChatMessageService:
         return ChatMessageResponse.from_chat_message(chat_message)
 
     @staticmethod
-    def get_messages(
+    def list_messages(
         id: Optional[str] = None,
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
         last_n: Optional[int] = None,
         sender_type: Optional[SenderType] = None,
+        exclude_id: Optional[List[str]] = None,
     ) -> List[ChatMessageResponse]:
         query = {}
         if id:
@@ -61,12 +62,22 @@ class ChatMessageService:
             query["sender"] = user_id
         if sender_type:
             query["sender_type"] = sender_type.value
+        if exclude_id:
+            query["id__nin"] = exclude_id
 
         messages = ChatMessage.objects(**query).order_by("-created_at")
         if last_n:
             messages = messages[:last_n]
 
         return [ChatMessageResponse.from_chat_message(msg) for msg in messages]
+
+    @staticmethod
+    def get_message(message_id: str) -> ChatMessageResponse:
+        try:
+            chat_message = ChatMessage.objects.get(id=message_id)
+            return ChatMessageResponse.from_chat_message(chat_message)
+        except me.DoesNotExist:
+            raise HTTPException(status_code=404, detail="Message not found")
 
     @staticmethod
     def update_chat_message(message_id: str, message_data: ChatMessageCreate) -> ChatMessageResponse:
