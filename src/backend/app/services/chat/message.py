@@ -7,7 +7,6 @@ from fastapi import HTTPException
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
-from app.tasks import trigger_chat_workflow
 
 
 class ChatMessageService:
@@ -35,8 +34,6 @@ class ChatMessageService:
             category=message_data.category.value,
         )
         chat_message.save()
-
-        trigger_chat_workflow(message_id=str(chat_message.id))
 
         return ChatMessageResponse.from_chat_message(chat_message)
 

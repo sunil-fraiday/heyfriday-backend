@@ -15,6 +15,7 @@ from app.models.mongodb.chat_session import ChatSession
 from app.services.ai_service import AIService
 from app.services.intent_classification import IntentClassificationService
 from app.services.chat.utils import create_system_chat_message
+from app.services.chat.message import ChatMessageService
 
 logger = get_task_logger(__name__)
 
@@ -52,9 +53,15 @@ def identify_intent_task(self, message_id: str):
             region_name=settings.AWS_BEDROCK_REGION,
             access_key_id=settings.AWS_BEDROCK_ACCESS_KEY_ID,
             secret_access_key=settings.AWS_BEDROCK_SECRET_ACCESS_KEY,
-            model_name="mistral.mixtral-8x7b-instruct-v0:1",
+            model_name="mistral.mistral-large-2402-v1:0",
         )
-        intent = intent_service.classify_with_bedrock(message_data, resource_scope_mapping={})
+        intent = intent_service.classify_with_bedrock(
+            current_message=message_data,
+            chat_history=ChatMessageService.list_messages(
+                session_id=chat_message.session.session_id, last_n=5, exclude_id=[message_id]
+            ),
+            resource_scope_mapping={},
+        )
         logger.info(f"Intent: {intent}")
         # Pass session and message data to the next task
         return {

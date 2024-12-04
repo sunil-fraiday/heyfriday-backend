@@ -3,13 +3,16 @@ from typing import List, Optional
 
 from app.services.chat.message import ChatMessageService
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse
+from app.tasks.chat import trigger_chat_workflow
 
 router = APIRouter(prefix="/messages", tags=["Chat Messages"])
 
 
 @router.post("", response_model=ChatMessageResponse)
 async def create_message(message_data: ChatMessageCreate):
-    return ChatMessageService.create_chat_message(message_data)
+    chat_message = ChatMessageService.create_chat_message(message_data)
+    trigger_chat_workflow(message_id=str(chat_message.id))
+    return chat_message
 
 
 @router.get("", response_model=List[ChatMessageResponse])
