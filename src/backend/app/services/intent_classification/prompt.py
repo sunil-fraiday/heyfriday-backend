@@ -37,19 +37,6 @@ few_shot_prompts = [
         },
     },
     {
-        "current_message": "I just want to have a casual chat.",
-        "chat_history": [
-            "User: Hello there!",
-            "Assistant: Hi! How can I assist you today?",
-            "User: Nothing specific, just a casual conversation.",
-            "Assistant: Sure! Feel free to ask or share anything.",
-        ],
-        "expected_output": {
-            "Resource": "GeneralConversation",
-            "Scopes": ["query"],
-        },
-    },
-    {
         "current_message": "How many tickets were resolved last week in IT support?",
         "chat_history": [
             "User: I’m curious about IT support details.",

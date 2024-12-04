@@ -34,7 +34,6 @@ class IntentClassificationService:
                     "TicketData": ["query"],
                     "RevenueData": ["query"],
                     "SalesData": ["query"],
-                    "GeneralConversation": ["query"],
                     "ITSupport": ["query"],
                 }
             )
