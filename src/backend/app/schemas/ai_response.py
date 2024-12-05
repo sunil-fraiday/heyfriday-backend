@@ -24,7 +24,7 @@ class AIResponse(BaseModel):
 
 class AIServiceRequest(BaseModel):
     current_message: str
-    chat_history: List[ChatMessageResponse] = Field(max_items=5)
+    chat_history: List[ChatMessageResponse] = Field(default_factory=list)
     session_id: str
     sender_id: str
     created_at: datetime

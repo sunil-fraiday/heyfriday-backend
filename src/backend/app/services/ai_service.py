@@ -18,7 +18,9 @@ class AIService:
         try:
             response = requests.post(
                 settings.AI_SERVICE_URL,
-                json=json.loads(self.prepare_payload(message_id).model_dump_json()), # Prevent double jsonification of the payload
+                json=json.loads(
+                    self.prepare_payload(message_id).model_dump_json()
+                ),  # Prevent double jsonification of the payload
             )
             ai_response = response.json()
             logger.info(f"AI Response: {ai_response}")
@@ -34,7 +36,7 @@ class AIService:
         try:
             chat_message = ChatMessageService.get_message(message_id=message_id)
             chat_message_history = ChatMessageService.list_messages(
-                last_n=5, exclude_id=[message_id], session_id=chat_message.session_id
+                last_n=6, exclude_id=[message_id], session_id=chat_message.session_id
             )
             return AIServiceRequest(
                 current_message=chat_message.text,

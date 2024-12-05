@@ -15,7 +15,7 @@ class MessageCategory(str, Enum):
 
 class SenderType(str, Enum):
     USER = "user"
-    BOT = "bot"
+    ASSISTANT = "assistant"
     SYSTEM = "system"
 
 

@@ -58,7 +58,7 @@ def identify_intent_task(self, message_id: str):
         intent = intent_service.classify_with_bedrock(
             current_message=message_data,
             chat_history=ChatMessageService.list_messages(
-                session_id=chat_message.session.session_id, last_n=5, exclude_id=[message_id]
+                session_id=chat_message.session.session_id, last_n=6, exclude_id=[message_id]
             ),
             resource_scope_mapping={},
         )
@@ -95,7 +95,7 @@ def generate_ai_response_task(self, session_data: dict):
             session=message.session,
             sender=constants.BOT_SENDER_NAME,
             sender_name=constants.BOT_SENDER_NAME,
-            sender_type=SenderType.BOT,
+            sender_type=SenderType.ASSISTANT,
             text=processed_message.data.answer.answer_text,
             data={"sql_data": processed_message.data.answer.answer_data},
         )
