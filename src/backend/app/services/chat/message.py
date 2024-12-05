@@ -64,7 +64,7 @@ class ChatMessageService:
 
         messages = ChatMessage.objects(**query).order_by("-created_at")
         if last_n:
-            messages = messages[:last_n]
+            messages = messages[:last_n + 1]
 
         return [ChatMessageResponse.from_chat_message(msg) for msg in messages]
 

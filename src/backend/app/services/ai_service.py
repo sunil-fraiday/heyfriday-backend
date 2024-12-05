@@ -37,7 +37,7 @@ class AIService:
             chat_message = ChatMessageService.get_message(message_id=message_id)
             chat_message_history = ChatMessageService.list_messages(
                 last_n=6, exclude_id=[message_id], session_id=chat_message.session_id
-            )
+            )[::-1]
             return AIServiceRequest(
                 current_message=chat_message.text,
                 chat_history=chat_message_history,
