@@ -4,7 +4,7 @@ from typing import List
 from app.services.client import ClientChannelService
 from app.schemas.client import ClientChannelCreateorUpdateRequest, ClientChannelResponse
 
-router = APIRouter(prefix="/clients/{client_id}/channels", tags=["Clients"])
+router = APIRouter(prefix="/clients/{client_id}/channels", tags=["Client Channels"])
 
 
 @router.post("", response_model=ClientChannelResponse)
