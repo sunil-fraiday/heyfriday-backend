@@ -51,6 +51,6 @@ class ClientService:
         try:
             client = Client.objects.get(client_id=client_id)
             client.update(**request.model_dump(exclude_unset=True))
-            return {"message": "Client updated successfully"}
+            return ClientResponse.model_validate(client.to_mongo().to_dict())
         except DoesNotExist:
             raise HTTPException(status_code=404, deftail="Client not found")

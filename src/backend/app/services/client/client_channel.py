@@ -8,12 +8,12 @@ from app.schemas.client import ClientChannelCreateorUpdateRequest, ClientChannel
 
 class ClientChannelService:
     @staticmethod
-    def create_channel(request: ClientChannelCreateorUpdateRequest) -> ClientChannelResponse:
+    def create_channel(client_id: str, request: ClientChannelCreateorUpdateRequest) -> ClientChannelResponse:
         """
         Creates a new client channel.
         """
         try:
-            client = Client.objects.get(client_id=request.client_id)
+            client = Client.objects.get(client_id=client_id)
             channel = ClientChannel(
                 channel_type=request.channel_type.value,
                 channel_config=request.channel_config,
@@ -40,7 +40,7 @@ class ClientChannelService:
             raise HTTPException(404, "Client not found")
 
     @staticmethod
-    def update_channel(channel_id: str, request: ClientChannelCreateorUpdateRequest) -> dict:
+    def update_channel(client_id: str, channel_id: str, request: ClientChannelCreateorUpdateRequest) -> dict:
         """
         Updates an existing client channel.
         """
