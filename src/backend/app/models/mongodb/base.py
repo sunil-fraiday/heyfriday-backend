@@ -7,3 +7,10 @@ class BaseDocument(Document):
     updated_at = fields.DateTimeField(default=datetime_utc_now)
 
     meta = {"abstract": True}
+
+    def to_serializable_dict(self):
+        """Custom method for serialization with _id as string."""
+        data = self.to_mongo().to_dict()
+        if "_id" in data:
+            data["id"] = str(data["_id"])
+        return data

@@ -12,10 +12,12 @@ from app.db.mongodb_utils import connect_to_db
 from app.schemas.chat import ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
+from app.models.mongodb.channel_request_log import ChannelRequestLog
 from app.services.ai_service import AIService
 from app.services.intent_classification import IntentClassificationService
 from app.services.chat.utils import create_system_chat_message
 from app.services.chat.message import ChatMessageService
+from app.services.client import ChannelRequestLogService, ClientChannelService
 
 logger = get_task_logger(__name__)
 
@@ -122,25 +124,54 @@ def send_to_webhook_task(self, message_data: dict):
         logger.info(f"Session data: {message_data}")
 
         message_id = message_data["message_id"]
-        message = ChatMessage.objects.get(id=message_id)
+        message: ChatMessage = ChatMessage.objects.get(id=message_id)
 
+        # Get or create the ChannelRequestLog
+        request_log, created = ChannelRequestLogService.get_or_create(
+            chat_message=message,
+            channel=message.session.client_channel,
+        )
         payload = ChatMessageResponse.from_chat_message(message).model_dump(mode="json")
-        response = requests.post(settings.SWYT_WEBHOOK_URL, json=payload)
+        webhook_url = ClientChannelService.get_channel_webhook_url(
+            client_id=message.session.client.id,
+            channel_id=message.session.client_channel.id,
+        )
+
+        response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
+
+        # Log the successful attempt
+        ChannelRequestLogService.log_attempt(
+            request_log=request_log,
+            attempt_number=self.request.retries + 1,
+            success=True,
+            response_status=response.status_code,
+            response_body=response.json(),
+        )
 
     except RequestException as exc:
         logger.error(f"Webhook notification failed: {exc}")
+
+        # Log the failed attempt
+        request_log = ChannelRequestLog.objects.get(message=message_id)  # Ensure we fetch the log
+        ChannelRequestLogService.log_attempt(
+            request_log=request_log,
+            attempt_number=self.request.retries + 1,
+            success=False,
+            error_message=str(exc),
+        )
         raise self.retry(exc=exc, countdown=60)  # Retry after 60 seconds
 
     except Exception as exc:
+        logger.error(f"Unexpected error: {exc}")
         # Send system error message if retries fail
-        session = ChatMessage.objects.get(id=message_data["message_id"]).session
-        message_id = create_system_chat_message(
+        session = ChatMessage.objects.get(id=message_id).session
+        system_message = create_system_chat_message(
             session=session,
             error_message=WEBHOOK_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(message_id)})
+        send_to_webhook_task.delay(message_data={"message_id": str(system_message.id)})
         raise exc  # Stop the chain
 
 

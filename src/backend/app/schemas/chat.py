@@ -12,14 +12,27 @@ class AttachmentCreate(BaseModel):
     file_url: str
 
 
-class ChatMessageCreate(BaseModel):
+class BaseChatMessageCreate(BaseModel):
     sender: Optional[str] = None
     sender_name: Optional[str] = None
-    session_id: Optional[str] = None
+    created_at: Optional[str] = None
     text: str
     attachments: Optional[List[AttachmentCreate]] = None
     data: Optional[dict] = None
     category: MessageCategory = MessageCategory.MESSAGE
+
+
+class ChatMessageCreate(BaseChatMessageCreate):
+    client_id: str = None
+    client_channel_type: str = None
+    session_id: str = None
+
+
+class BulkChatMessageCreate(BaseModel):
+    messages: List[BaseChatMessageCreate]
+    session_id: str
+    client_id: str = None
+    client_channel_type: str = None
 
 
 class ChatMessageResponse(BaseModel):
