@@ -7,7 +7,7 @@ class Client(BaseDocument):
     email = fields.EmailField(required=False, default=None)
     client_id = fields.StringField(required=True, unique=True)
     client_key = fields.StringField(required=True, unique=True)
-    keycloak_config = fields.EmbeddedDocumentField(required=False, default=None)
+    keycloak_config = fields.DictField(required=False, default=None)
 
     is_active = fields.BooleanField(default=True)
 

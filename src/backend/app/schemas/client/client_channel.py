@@ -11,7 +11,7 @@ class WebhookChannelConfig(BaseModel):
 
 class SlackWebhookConfig(BaseModel):
     webhook_url: str
-    slack_token: str
+    headers: Optional[Dict] = None
 
 
 class ClientChannelCreateorUpdateRequest(BaseModel):
@@ -21,11 +21,7 @@ class ClientChannelCreateorUpdateRequest(BaseModel):
 
 
 class ClientChannelResponse(BaseModel):
-    id: str = Field(..., alias="_id")
+    id: str
     channel_type: ChannelType
     channel_config: Union[WebhookChannelConfig, SlackWebhookConfig]
-    client_id: str
     is_active: bool
-
-    class Config:
-        allow_population_by_field_name = True

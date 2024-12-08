@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 from typing import List, Optional
 
 from app.services.chat.message import ChatMessageService
-from app.schemas.chat import ChatMessageCreate, ChatMessageResponse
+from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.tasks.chat import trigger_chat_workflow
 
 router = APIRouter(prefix="/messages", tags=["Chat Messages"])
@@ -25,3 +25,8 @@ async def get_messages(
 @router.put("/{message_id}", response_model=ChatMessageResponse)
 async def update_message(message_id: str, message_data: ChatMessageCreate):
     return ChatMessageService.update_chat_message(message_id, message_data)
+
+
+@router.post("/bulk", response_model=List[ChatMessageResponse])
+async def create_bulk_messages(bulk_message_data: BulkChatMessageCreate):
+    return ChatMessageService.create_bulk_chat_messages(bulk_message_data)

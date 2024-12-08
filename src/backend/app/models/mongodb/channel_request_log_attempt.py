@@ -5,18 +5,18 @@ from .base import BaseDocument
 from .utils import datetime_utc_now
 
 
-class RequestAttemptLogStatus(Enum):
+class ChannelRequestLogAttemptStatus(Enum):
     SUCCESS = "success"
     FAILURE = "failure"
 
 
-class ChannelRequestAttemptLog(BaseDocument):
+class ChannelRequestLogAttempt(BaseDocument):
     channel_request_log = fields.ReferenceField("ChannelRequestLog", reverse_delete_rule=CASCADE)
     attempt_number = fields.IntField()
     response_status = fields.IntField(null=True)
     response_body = fields.DictField(null=True)
     error_message = fields.StringField(null=True)
-    status = fields.EnumField(choices=[c for c in RequestAttemptLogStatus])
+    status = fields.StringField(choices=[c for c in ChannelRequestLogAttemptStatus])
     attempted_at = fields.DateTimeField(default=datetime_utc_now)
 
     meta = {

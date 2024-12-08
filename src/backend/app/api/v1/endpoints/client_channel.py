@@ -3,6 +3,9 @@ from typing import List
 
 from app.services.client import ClientChannelService
 from app.schemas.client import ClientChannelCreateorUpdateRequest, ClientChannelResponse
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/clients/{client_id}/channels", tags=["Client Channels"])
 
@@ -10,8 +13,9 @@ router = APIRouter(prefix="/clients/{client_id}/channels", tags=["Client Channel
 @router.post("", response_model=ClientChannelResponse)
 def create_channel(client_id: str, request: ClientChannelCreateorUpdateRequest):
     try:
-        return ClientChannelService.create_channel(request)
+        return ClientChannelService.create_channel(client_id=client_id, request=request)
     except ValueError as e:
+        logger.error(f"Error creating channel: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
 
 
