@@ -14,10 +14,16 @@ from app.models.mongodb.chat_session import ChatSession
 class ChatMessageService:
     @staticmethod
     def create_chat_message(message_data: ChatMessageCreate) -> ChatMessageResponse:
+        client = ClientService.get_client(message_data.client_id)
+        client_channel = ClientChannelService.get_channel_by_type(
+            client_id=message_data.client_id, channel_type=message_data.client_channel_type
+        )
         try:
-            session = ChatSession.objects.get(session_id=message_data.session_id)
+            session = ChatSession.objects.get(
+                session_id=message_data.session_id
+            )
         except me.DoesNotExist:
-            session = ChatSession(session_id=message_data.session_id)
+            session = ChatSession(session_id=message_data.session_id, client=client, client_channel=client_channel)
             session.save()
 
         attachments = (
@@ -107,7 +113,7 @@ class ChatMessageService:
         session = None
         client = ClientService.get_client(bulk_message_data.client_id)
         client_channel = ClientChannelService.get_channel_by_type(
-            client_id=bulk_message_data.client_id, client_channel=bulk_message_data.client_channel_type
+            client_id=bulk_message_data.client_id, channel_type=bulk_message_data.client_channel_type
         )
 
         try:

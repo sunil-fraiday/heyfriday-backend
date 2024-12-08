@@ -4,7 +4,7 @@ from enum import Enum
 from .base import BaseDocument
 
 
-class ChannelRequestLogStatus(Enum):
+class ChannelRequestLogStatus(str, Enum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILURE = "failure"

@@ -56,14 +56,14 @@ class ClientChannelService:
             raise HTTPException(404, "Client not found")
 
     @staticmethod
-    def get_channel_by_type(client_id: str, channel_type: str) -> ClientChannelResponse:
+    def get_channel_by_type(client_id: str, channel_type: str) -> ClientChannel:
         """
         Retrieves a specific channel for a client by its type.
         """
         try:
             client = Client.objects.get(client_id=client_id)
             channel = ClientChannel.objects.get(client=client, channel_type=channel_type)
-            return ClientChannelResponse.model_validate(channel.to_serializable_dict())
+            return channel
         except DoesNotExist:
             raise HTTPException(404, "Client not found")
 
@@ -73,7 +73,7 @@ class ClientChannelService:
         Retrieves the webhook URL for a specific channel.
         """
         try:
-            channel = ClientChannel.objects.get(client_id=client_id, id=channel_id)
+            channel = ClientChannel.objects.get(id=channel_id)
             channel_response = ClientChannelResponse.model_validate(channel.to_serializable_dict())
             return channel_response.channel_config.webhook_url
         except DoesNotExist:

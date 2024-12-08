@@ -5,7 +5,7 @@ from .base import BaseDocument
 from .utils import datetime_utc_now
 
 
-class ChannelRequestLogAttemptStatus(Enum):
+class ChannelRequestLogAttemptStatus(str, Enum):
     SUCCESS = "success"
     FAILURE = "failure"
 

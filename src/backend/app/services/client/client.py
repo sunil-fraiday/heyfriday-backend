@@ -43,7 +43,7 @@ class ClientService:
         """
         try:
             client = Client.objects.get(client_id=client_id)
-            return ClientResponse.model_validate(client.to_serializable_dict())
+            return client
         except DoesNotExist:
             raise HTTPException(404, f"Client with ID {client_id} not found")
 

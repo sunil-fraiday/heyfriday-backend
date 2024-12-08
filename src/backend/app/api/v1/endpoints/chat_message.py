@@ -10,6 +10,7 @@ router = APIRouter(prefix="/messages", tags=["Chat Messages"])
 
 @router.post("", response_model=ChatMessageResponse)
 async def create_message(message_data: ChatMessageCreate):
+    print("Received message data:", message_data.model_dump_json())
     chat_message = ChatMessageService.create_chat_message(message_data)
     trigger_chat_workflow(message_id=str(chat_message.id))
     return chat_message
@@ -29,4 +30,7 @@ async def update_message(message_id: str, message_data: ChatMessageCreate):
 
 @router.post("/bulk", response_model=List[ChatMessageResponse])
 async def create_bulk_messages(bulk_message_data: BulkChatMessageCreate):
-    return ChatMessageService.create_bulk_chat_messages(bulk_message_data)
+    chat_message_bulk_create_response = ChatMessageService.create_bulk_chat_messages(bulk_message_data)
+    latest_message = max(chat_message_bulk_create_response, key=lambda x: x.created_at)
+    trigger_chat_workflow(message_id=str(latest_message.id))
+    return chat_message_bulk_create_response

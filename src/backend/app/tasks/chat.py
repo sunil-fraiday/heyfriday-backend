@@ -128,13 +128,13 @@ def send_to_webhook_task(self, message_data: dict):
 
         # Get or create the ChannelRequestLog
         request_log, created = ChannelRequestLogService.get_or_create(
-            chat_message_id=message,
-            channel=message.channel,
+            chat_message=message,
+            channel=message.session.client_channel,
         )
         payload = ChatMessageResponse.from_chat_message(message).model_dump(mode="json")
         webhook_url = ClientChannelService.get_channel_webhook_url(
             client_id=message.session.client.id,
-            channel_id=message.session.channel.id,
+            channel_id=message.session.client_channel.id,
         )
 
         response = requests.post(webhook_url, json=payload)
@@ -166,12 +166,12 @@ def send_to_webhook_task(self, message_data: dict):
         logger.error(f"Unexpected error: {exc}")
         # Send system error message if retries fail
         session = ChatMessage.objects.get(id=message_id).session
-        system_message_id = create_system_chat_message(
+        system_message = create_system_chat_message(
             session=session,
             error_message=WEBHOOK_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(system_message_id)})
+        send_to_webhook_task.delay(message_data={"message_id": str(system_message.id)})
         raise exc  # Stop the chain
 
 
