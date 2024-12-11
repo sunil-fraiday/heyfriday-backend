@@ -30,7 +30,7 @@ class ClientService:
                 is_active=request.is_active,
             )
             client.save()
-            return ClientResponse.model_validate_json(client.to_serializable_dict())
+            return ClientResponse.model_validate(client.to_serializable_dict())
         except NotUniqueError as e:
             raise HTTPException(400, f"Duplicate field: {str(e)}")
         except ValidationError as e:
