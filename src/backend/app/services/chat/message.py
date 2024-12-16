@@ -4,7 +4,9 @@ from datetime import datetime, timezone
 import mongoengine as me
 from fastapi import HTTPException
 
-from app.schemas.chat import ChatMessageCreate, ChatMessageResponse
+from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
+from app.services.client.client import ClientService
+from app.services.client.client_channel import ClientChannelService
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
 
@@ -12,10 +14,16 @@ from app.models.mongodb.chat_session import ChatSession
 class ChatMessageService:
     @staticmethod
     def create_chat_message(message_data: ChatMessageCreate) -> ChatMessageResponse:
+        client = ClientService.get_client(message_data.client_id)
+        client_channel = ClientChannelService.get_channel_by_type(
+            client_id=message_data.client_id, channel_type=message_data.client_channel_type
+        )
         try:
-            session = ChatSession.objects.get(session_id=message_data.session_id)
+            session = ChatSession.objects.get(
+                session_id=message_data.session_id
+            )
         except me.DoesNotExist:
-            session = ChatSession(session_id=message_data.session_id)
+            session = ChatSession(session_id=message_data.session_id, client=client, client_channel=client_channel)
             session.save()
 
         attachments = (
@@ -98,3 +106,45 @@ class ChatMessageService:
         chat_message.save()
 
         return ChatMessageResponse.from_chat_message(chat_message)
+
+    @staticmethod
+    def create_bulk_chat_messages(bulk_message_data: BulkChatMessageCreate) -> List[ChatMessageResponse]:
+        responses = []
+        session = None
+        client = ClientService.get_client(bulk_message_data.client_id)
+        client_channel = ClientChannelService.get_channel_by_type(
+            client_id=bulk_message_data.client_id, channel_type=bulk_message_data.client_channel_type
+        )
+
+        try:
+            session = ChatSession.objects.get(
+                session_id=bulk_message_data.session_id, client=client, client_channel=client_channel
+            )
+        except me.DoesNotExist:
+            session = ChatSession(
+                session_id=bulk_message_data.session_id,
+                client=client,
+                client_channel=client_channel,
+            )
+            session.save()
+
+        for message_data in bulk_message_data.messages:
+            attachments = (
+                [Attachment(**attach.model_dump()) for attach in message_data.attachments]
+                if message_data.attachments
+                else []
+            )
+
+            chat_message = ChatMessage(
+                session=session,
+                text=message_data.text,
+                sender=message_data.sender,
+                sender_name=message_data.sender_name,
+                attachments=attachments,
+                category=message_data.category.value,
+                created_at=message_data.created_at or datetime.now(timezone.utc),
+            )
+            chat_message.save()
+            responses.append(chat_message)
+
+        return [ChatMessageResponse.from_chat_message(msg) for msg in responses]
