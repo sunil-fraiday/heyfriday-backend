@@ -50,6 +50,7 @@ class AIService:
                 sender_type=chat_message.sender_type,
                 created_at=chat_message.created_at,
                 updated_at=chat_message.updated_at,
+                current_message_id=str(chat_message.id),
             )
         except Exception as e:
             logger.error(f"Error creating AI Service Request: {str(e)}", exc_info=True)

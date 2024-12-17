@@ -30,3 +30,4 @@ class AIServiceRequest(BaseModel):
     created_at: datetime
     updated_at: datetime
     sender_type: SenderType
+    current_message_id: str
