@@ -3,6 +3,7 @@ import requests
 import traceback
 import logging
 import json
+from datetime import timedelta
 
 from app.core.config import settings
 from app.schemas.ai_response import AIResponse, AIServiceRequest
@@ -36,7 +37,10 @@ class AIService:
         try:
             chat_message = ChatMessageService.get_message(message_id=message_id)
             chat_message_history = ChatMessageService.list_messages(
-                last_n=6, exclude_id=[message_id], session_id=chat_message.session_id
+                last_n=6,
+                exclude_id=[message_id],
+                session_id=chat_message.session_id,
+                start_date=chat_message.created_at - timedelta(minutes=10), # Get messages only from past 10 minutes
             )[::-1]
             return AIServiceRequest(
                 current_message=chat_message.text,

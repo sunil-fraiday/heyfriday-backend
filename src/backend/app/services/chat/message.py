@@ -19,9 +19,7 @@ class ChatMessageService:
             client_id=message_data.client_id, channel_type=message_data.client_channel_type
         )
         try:
-            session = ChatSession.objects.get(
-                session_id=message_data.session_id
-            )
+            session = ChatSession.objects.get(session_id=message_data.session_id)
         except me.DoesNotExist:
             session = ChatSession(session_id=message_data.session_id, client=client, client_channel=client_channel)
             session.save()
@@ -53,6 +51,8 @@ class ChatMessageService:
         last_n: Optional[int] = None,
         sender_type: Optional[SenderType] = None,
         exclude_id: Optional[List[str]] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> List[ChatMessageResponse]:
         query = {}
         if id:
@@ -69,10 +69,14 @@ class ChatMessageService:
             query["sender_type"] = sender_type.value
         if exclude_id:
             query["id__nin"] = exclude_id
+        if start_date:
+            query["created_at__gte"] = start_date
+        if end_date:
+            query["created_at__lte"] = end_date
 
         messages = ChatMessage.objects(**query).order_by("-created_at")
         if last_n:
-            messages = messages[:last_n + 1]
+            messages = messages[: last_n + 1]
 
         return [ChatMessageResponse.from_chat_message(msg) for msg in messages]
 
