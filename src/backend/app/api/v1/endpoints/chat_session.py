@@ -26,3 +26,6 @@ async def get_chat_session(session_id: str):
         }
     except me.DoesNotExist:
         raise HTTPException(status_code=404, detail="Session not found")
+    
+
+
