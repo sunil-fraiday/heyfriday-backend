@@ -12,12 +12,14 @@ from app.db.mongodb_utils import connect_to_db
 from app.schemas.chat import ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
+from app.models.mongodb.client import KeycloakConfig
 from app.models.mongodb.channel_request_log import ChannelRequestLog
 from app.services.ai_service import AIService
 from app.services.intent_classification import IntentClassificationService
 from app.services.chat.utils import create_system_chat_message
 from app.services.chat.message import ChatMessageService
 from app.services.client import ChannelRequestLogService, ClientChannelService
+from app.services.keycloak import KeycloakAuthorizationService
 
 logger = get_task_logger(__name__)
 
@@ -26,6 +28,16 @@ connect_to_db()
 
 INTENT_CLASSIFICATION_ERROR_MESSAGE = """
 🚨 Oops! We are not able to understand your intent for the given message. Please try rephrasing the message and try again.
+"""
+
+UNAUTHORIZED_MESSAGE = """
+🚨 Oops! You are not authorized to ask for this specific information.
+"""
+
+AUTHORIZATION_ERROR_MESSAGE = """
+🤖 We're sorry!
+We couldn't authorize your request.
+If this issue persists, please contact support.
 """
 
 AI_SERVICE_ERROR_MESSAGE = """
@@ -81,6 +93,65 @@ def identify_intent_task(self, message_id: str):
         )
         send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
         raise exc  # Stop the chain if there is an exception here
+
+
+@shared_task(bind=True)
+def authorization(self, session_data: dict):
+    logger.info(f"Session data: {session_data}")
+    message_id = session_data["message_id"]
+    try:
+        message: ChatMessage = ChatMessage.objects.get(id=message_id)
+        session: ChatSession = message.session
+        client = session.client
+        keycloak_config: KeycloakConfig = client.get_keycloak_config()
+
+        if not keycloak_config: # Continue without authorization flow if keycloak config is not available
+            return session_data
+
+        intent = session_data["intent"]
+        resource = intent.get("Resource", None)
+        scope = intent.get("Scope", None)
+
+        keycloak_service = KeycloakAuthorizationService(
+            server_url=keycloak_config.server_url,
+            realm=keycloak_config.realm,
+            client_id=keycloak_config.client_id,
+            client_secret=keycloak_config.client_secret,
+        )
+        admin_token = keycloak_service.get_admin_access_token(
+            keycloak_config.admin_username, keycloak_config.admin_password
+        )
+
+        # Perform the token exchange
+        exchanged_token = keycloak_service.exchange_token(admin_token, message.sender)
+        print("Exchanged Token:", exchanged_token)
+
+        # Validate user authorization
+        is_authorized = keycloak_service.validate_user_authorization(exchanged_token["access_token"], resource, scope)
+
+        if is_authorized:
+            logger.info(f"User is authorized to access {resource} with scope {scope}.")
+            return session_data
+        else:
+            logger.info(f"User is NOT authorized to access {resource} with scope {scope}.")
+            message = create_system_chat_message(
+                session=session,
+                error_message=UNAUTHORIZED_MESSAGE,
+                message_category=MessageCategory.INFO,
+            )
+            send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+            self.request.callbacks = None  # Stop the chain if unauthorized
+
+    except Exception as exc:
+        # Send system error message
+        session = ChatSession.objects.get(id=session_data["session_id"])
+        message = create_system_chat_message(
+            session=session,
+            error_message=AUTHORIZATION_ERROR_MESSAGE,
+            message_category=MessageCategory.ERROR,
+        )
+        send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+        raise exc
 
 
 @shared_task(bind=True)
@@ -181,7 +252,8 @@ def trigger_chat_workflow(message_id: str):
     """
     process_chain = chain(
         identify_intent_task.s(message_id),  # First task
-        generate_ai_response_task.s(),  # Second task
-        send_to_webhook_task.s(),  # Third task
+        authorization.s(),  # Second task
+        generate_ai_response_task.s(),  # Third task
+        send_to_webhook_task.s(),  # Fourth task
     )
     process_chain.apply_async()
