@@ -2,6 +2,10 @@ import os
 import requests
 from typing import Optional
 
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class KeycloakAuthorizationService:
     def __init__(self, server_url: str, realm: str, client_id: str, client_secret: Optional[str] = None):
@@ -71,7 +75,10 @@ class KeycloakAuthorizationService:
         headers = {"Authorization": f"Bearer {user_token}"}
 
         auth_response = requests.post(auth_url, data=auth_data, headers=headers)
+        logger.info(f"Auth response: {auth_response.json()}, Status code: {auth_response.status_code}")
         if auth_response.status_code == 200:
             return auth_response.json().get("result", False)  # True if authorized, False otherwise
+        if auth_response.status_code == 403:
+            return False
         else:
             raise Exception(f"Failed to validate authorization: {auth_response.json()}")

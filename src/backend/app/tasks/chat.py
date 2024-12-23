@@ -105,12 +105,14 @@ def authorization(self, session_data: dict):
         client = session.client
         keycloak_config: KeycloakConfig = client.get_keycloak_config()
 
-        if not keycloak_config: # Continue without authorization flow if keycloak config is not available
+        if not keycloak_config:  # Continue without authorization flow if keycloak config is not available
             return session_data
 
         intent = session_data["intent"]
         resource = intent.get("Resource", None)
-        scope = intent.get("Scope", None)
+        scopes = intent.get("Scopes", [])
+        scope = scopes[0] if scopes else None
+        logger.info(f"Resource: {resource}, Scope: {scope}")
 
         keycloak_service = KeycloakAuthorizationService(
             server_url=keycloak_config.server_url,
@@ -126,22 +128,26 @@ def authorization(self, session_data: dict):
         exchanged_token = keycloak_service.exchange_token(admin_token, message.sender)
         print("Exchanged Token:", exchanged_token)
 
-        # Validate user authorization
-        is_authorized = keycloak_service.validate_user_authorization(exchanged_token["access_token"], resource, scope)
-
-        if is_authorized:
-            logger.info(f"User is authorized to access {resource} with scope {scope}.")
-            return session_data
-        else:
-            logger.info(f"User is NOT authorized to access {resource} with scope {scope}.")
-            message = create_system_chat_message(
-                session=session,
-                error_message=UNAUTHORIZED_MESSAGE,
-                message_category=MessageCategory.INFO,
+        if resource and scope:
+            is_authorized = keycloak_service.validate_user_authorization(
+                exchanged_token["access_token"], resource, scope
             )
-            send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
-            self.request.callbacks = None  # Stop the chain if unauthorized
 
+            if is_authorized:
+                logger.info(f"User is authorized to access {resource} with scope {scope}.")
+                return session_data
+            else:
+                logger.info(f"User is NOT authorized to access {resource} with scope {scope}.")
+                message = create_system_chat_message(
+                    session=session,
+                    error_message=UNAUTHORIZED_MESSAGE,
+                    message_category=MessageCategory.INFO,
+                )
+                send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+                if self.request.callbacks: # Stop the chain if unauthorized
+                    self.request.callbacks[:] = []
+
+        logger.info("Resource or Scope was not identified from the Intent classifier so skipping authorization.")
     except Exception as exc:
         # Send system error message
         session = ChatSession.objects.get(id=session_data["session_id"])
@@ -224,7 +230,7 @@ def send_to_webhook_task(self, message_data: dict):
         logger.error(f"Webhook notification failed: {exc}")
 
         # Log the failed attempt
-        request_log = ChannelRequestLog.objects.get(message=message_id)  # Ensure we fetch the log
+        request_log = ChannelRequestLog.objects.get(chat_message=message_id)  # Ensure we fetch the log
         ChannelRequestLogService.log_attempt(
             request_log=request_log,
             attempt_number=self.request.retries + 1,

@@ -31,10 +31,9 @@ class IntentClassificationService:
         try:
             resource_scope_mapping = json.dumps(
                 {
-                    "TicketData": ["query"],
-                    "RevenueData": ["query"],
-                    "SalesData": ["query"],
-                    "ITSupport": ["query"],
+                    "it-support": ["query"],
+                    "onboarding-data": ["query"],
+                    "ticket-data": ["query"],
                 }
             )
 
