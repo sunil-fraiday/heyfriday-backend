@@ -124,9 +124,9 @@ class ChatRecapService:
                 "context_of_issue",
                 "conversation_highlights",
                 "participants_and_roles",
-                "client_sentiment_and_communication_notes",
+                "client_sentiment",
+                "communication_notes",
                 "unresolved_points",
-                "attachments_and_evidence",
                 "important_agreements_or_promises",
             }
 

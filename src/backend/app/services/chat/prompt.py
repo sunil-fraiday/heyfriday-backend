@@ -19,15 +19,17 @@ Generate a structured summary that captures:
    - Who participated (client, bot, agents)
    - Their roles and contributions
 
-4. Client Sentiment and Communication Notes
+4. Client Sentiment
    - Client's mood throughout the conversation
+
+5. Communication Notes
    - Communication preferences or notable patterns
 
-5. Unresolved Points
+6. Unresolved Points
    - Unanswered questions or concerns
    - Issues lacking clarity
 
-6. Important Agreements or Promises
+7. Important Agreements or Promises
    - Commitments or guarantees made
    - Deadlines or specific actions agreed upon
 
