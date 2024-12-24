@@ -83,7 +83,7 @@ class ChatRecapService:
         Get the latest recap for a chat session.
         """
         try:
-            recap = ChatSessionRecap.find_one({"session": chat_session.id}, sort=[("created_at", -1)])
+            recap = ChatSessionRecap.objects(chat_session=chat_session).order_by("-created_at").first()
             return recap
         except Exception as e:
             logger.error(f"Error fetching recap for session {chat_session.id}", exc_info=True)

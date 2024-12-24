@@ -61,7 +61,7 @@ class ChatMessageResponse(BaseModel):
             text=chat_message.text,
             data=chat_message.data,
             attachments=(
-                [AttachmentCreate(**a) for a in chat_message.attachments] if chat_message.attachments else None
+                [AttachmentCreate(**a.to_mongo().to_dict()) for a in chat_message.attachments] if chat_message.attachments else None
             ),
             category=MessageCategory(chat_message.category),
             sender_type=chat_message.sender_type,

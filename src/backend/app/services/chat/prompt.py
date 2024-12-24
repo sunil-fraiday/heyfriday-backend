@@ -27,13 +27,40 @@ Generate a structured summary that captures:
    - Unanswered questions or concerns
    - Issues lacking clarity
 
-6. Attachments and Evidence
-   - References to shared files, screenshots, or logs
-   - Relevant external links or documents
-
-7. Important Agreements or Promises
+6. Important Agreements or Promises
    - Commitments or guarantees made
    - Deadlines or specific actions agreed upon
+
+CLIENT_SENTIMENT_LIST: 
+    # Positive Sentiments
+    SATISFIED = "satisfied"           # Happy with the resolution/service
+    GRATEFUL = "grateful"            # Expressing thanks and appreciation
+    COOPERATIVE = "cooperative"      # Willing to follow instructions/help
+    RELIEVED = "relieved"           # Problem has been resolved
+    
+    # Neutral Sentiments
+    NEUTRAL = "neutral"             # Neither positive nor negative
+    PROFESSIONAL = "professional"    # Formal, business-like tone
+    INQUISITIVE = "inquisitive"     # Asking questions to understand better
+    PATIENT = "patient"             # Willing to wait for resolution
+    
+    # Negative Sentiments
+    FRUSTRATED = "frustrated"        # Difficulties with the situation
+    ANGRY = "angry"                 # Strong negative emotions
+    DISAPPOINTED = "disappointed"    # Expectations not met
+    CONFUSED = "confused"           # Not understanding the process/solution
+    
+    # Time-Sensitive Sentiments
+    URGENT = "urgent"               # Requires immediate attention
+    ANXIOUS = "anxious"             # Worried about time/outcome
+    IMPATIENT = "impatient"         # Wanting faster resolution
+    
+    # Specific Situation Sentiments
+    SKEPTICAL = "skeptical"         # Doubtful about solution/process
+    DEMANDING = "demanding"         # Insisting on specific outcomes
+    APOLOGETIC = "apologetic"       # Sorry for confusion/mistakes
+    CONCERNED = "concerned"         # Worried about implications
+    OVERWHELMED = "overwhelmed"     # Finding process/situation too complex
 
 Return the analysis in the following JSON structure (ensure valid JSON format):
 {{
@@ -49,19 +76,11 @@ Return the analysis in the following JSON structure (ensure valid JSON format):
             "contribution": "Brief summary of their participation"
         }}
     ],
-    "client_sentiment_and_communication_notes": {{
-        "sentiment": "Overall sentiment (e.g., frustrated, cooperative, calm)",
-        "communication_notes": "Notable communication preferences or patterns"
-    }},
+    "client_sentiment": "Sentiment of the client expressed as any one of the CLIENT_SENTIMENT_LIST",
+    "communication_notes": "Any notable communication preferences or patterns",
     "unresolved_points": [
         "Unresolved point or question 1",
         "Unresolved point or question 2"
-    ],
-    "attachments_and_evidence": [
-        {{
-            "type": "Type of attachment (Screenshot/Log/File/Link)",
-            "description": "Description of the attachment or reference"
-        }}
     ],
     "important_agreements_or_promises": [
         {{

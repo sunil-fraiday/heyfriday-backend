@@ -51,7 +51,7 @@ def get_session_recap(session_id: str):
     Get the latest recap for the specified chat session.
     """
     try:
-        session = ChatSession.objects.get(id=session_id)
+        session = ChatSession.objects.get(session_id=session_id)
         recap = ChatRecapService.get_latest_recap(session)
 
         if not recap:

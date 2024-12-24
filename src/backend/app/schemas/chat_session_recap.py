@@ -9,11 +9,6 @@ class ParticipantInfo(BaseModel):
     contribution: str
 
 
-class SentimentInfo(BaseModel):
-    sentiment: str
-    communication_notes: str
-
-
 class AttachmentInfo(BaseModel):
     type: str
     description: str
@@ -28,9 +23,9 @@ class RecapData(BaseModel):
     context_of_issue: str
     conversation_highlights: List[str]
     participants_and_roles: List[ParticipantInfo]
-    client_sentiment_and_communication_notes: SentimentInfo
+    client_sentiment: str
+    communication_notes: str
     unresolved_points: List[str]
-    attachments_and_evidence: List[AttachmentInfo]
     important_agreements_or_promises: List[AgreementInfo]
 
     class Config:
@@ -40,6 +35,6 @@ class RecapData(BaseModel):
 class ChatSessionRecapResponse(BaseModel):
     id: str
     session_id: str
-    recap_data: RecapData
+    recap_data: dict
     created_at: datetime
     updated_at: datetime
