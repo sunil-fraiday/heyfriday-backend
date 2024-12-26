@@ -27,6 +27,7 @@ class Attachment(EmbeddedDocument):
 
 
 class ChatMessage(BaseDocument):
+    external_id = fields.StringField(nullable=True)  # Id to identify the message from other systems
     sender = fields.StringField()
     sender_name = fields.StringField()
     sender_type = fields.StringField(
