@@ -16,7 +16,7 @@ class ClientStructuredDataStore(BaseDocument):
     is_active = fields.BooleanField(default=True)
 
     meta = {
-        "collection": "structured_data_stores",
+        "collection": "client_structured_data_stores",
         "indexes": ["client", "database_type", ("client", "database_type"), "created_at"],
     }
 

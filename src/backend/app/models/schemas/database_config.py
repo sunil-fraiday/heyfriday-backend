@@ -6,11 +6,10 @@ class DatabaseConfig(BaseModel):
     """Base configuration model for database credentials"""
 
     database: str
-    username: str
+    user: str
     password: str
     host: str = Field(default="localhost")
     port: int
-    additional_params: Dict = Field(default={})
 
 
 class ClickHouseConfig(DatabaseConfig):
@@ -24,4 +23,3 @@ class PostgresConfig(DatabaseConfig):
     """PostgreSQL specific configuration"""
 
     port: int = Field(default=5432)
-    ssl_mode: str = Field(default="prefer")

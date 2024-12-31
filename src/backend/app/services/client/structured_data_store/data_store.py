@@ -1,4 +1,5 @@
 from typing import Optional
+from fastapi import HTTPException
 
 from app.models.schemas.database_config import DatabaseConfig
 from app.models.mongodb.client import Client
@@ -19,9 +20,9 @@ logger = get_logger(__name__)
 class ClientStructuredDataStoreService:
     """Service for managing client database stores"""
 
-    def __init__(self, credential_manager: "CredentialManager", db_server_service: DBServerService):
+    def __init__(self, credential_manager: "CredentialManager"):
         self.credential_manager = credential_manager
-        self.db_server_service = db_server_service
+        self.db_server_service = DBServerService(credential_manager=credential_manager)
 
     def get_service(self, client_id: str, database_type: DatabaseType) -> BaseDataStoreService:
         """
@@ -59,17 +60,19 @@ class ClientStructuredDataStoreService:
             logger.error(f"Error creating {database_type} database for client {client_id}", exc_info=True)
             raise
 
-    def get_client_database_config(self, client_id: str, database_type: DatabaseType) -> Optional[DatabaseConfig]:
+    def get_data_store(self, client_id: str, database_type: DatabaseType) -> Optional[DatabaseConfig]:
         """Get decrypted database configuration for a client"""
         try:
             client = Client.objects.get(client_id=client_id)
             data_store = ClientStructuredDataStore.objects.get(
                 client=client, database_type=database_type, is_active=True
             )
-            return data_store.get_config(self.credential_manager)
+            return data_store
 
         except (Client.DoesNotExist, ClientStructuredDataStore.DoesNotExist):
-            return None
+            raise HTTPException(
+                status_code=404, detail=f"No active database configuration found for client: {client_id}"
+            )
         except Exception as e:
             logger.error(f"Error getting database config for client {client_id}", exc_info=True)
             raise

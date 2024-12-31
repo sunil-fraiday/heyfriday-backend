@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
     AI_SERVICE_URL: str = TEXT_TO_SQL_SERVICE_URL
     SWYT_WEBHOOK_URL: Optional[str] = None
+    API_KEY: str
+    ENCRYPTION_KEY: str
 
     AWS_BEDROCK_ACCESS_KEY_ID: str
     AWS_BEDROCK_SECRET_ACCESS_KEY: str

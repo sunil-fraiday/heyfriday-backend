@@ -33,7 +33,7 @@ class CredentialManager:
     def decrypt_config(self, config: dict) -> dict:
         """Decrypts sensitive fields using current or old keys"""
         decrypted_config = config.copy()
-        sensitive_fields = ["password", "username"]
+        sensitive_fields = ["password", "username", "user"]
 
         for field in sensitive_fields:
             if field in decrypted_config:

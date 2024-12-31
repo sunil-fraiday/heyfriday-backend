@@ -26,18 +26,51 @@ class PostgresService(BaseDataStoreService):
 
         try:
             db_name = f"client_{client.client_id.lower()}"
-            username, password = self._generate_secure_credentials("pg_user")
+            username, password = self._generate_secure_credentials(f"user")
 
-            with self.driver.connect(**self.admin_connection) as conn:
-                conn.autocommit = True
+            conn = self.driver.connect(
+                **self.admin_connection
+            )  # default admin db from the db server would be used here
+            conn.autocommit = True
+            try:
                 with conn.cursor() as cur:
-                    cur.execute(f"CREATE USER {username} WITH PASSWORD '{password}'")
-                    cur.execute(f"CREATE DATABASE {db_name} OWNER {username}")
-                    cur.execute(f"GRANT ALL PRIVILEGES ON DATABASE {db_name} TO {username}")
+                    # Check if user exists before creating
+                    cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (username,))
+                    if not cur.fetchone():
+                        cur.execute(f"CREATE USER {username} WITH PASSWORD '{password}'")
+
+                    # Check if database exists before creating
+                    cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                    if not cur.fetchone():
+                        cur.execute(f"CREATE DATABASE {db_name} OWNER {self.admin_connection['user']}")
+            finally:
+                conn.close()
+
+            # Connect to the new database to set up permissions
+            db_conn = self.driver.connect(**{**self.admin_connection, "database": db_name})
+            db_conn.autocommit = True
+            try:
+                with db_conn.cursor() as cur:
+                    # Set up read-only permissions for regular user
+                    cur.execute(
+                        f"""
+                        DO $$
+                        BEGIN
+                            EXECUTE format('GRANT CONNECT ON DATABASE {db_name} TO {username}');
+                            GRANT USAGE ON SCHEMA public TO {username};
+                            GRANT SELECT ON ALL TABLES IN SCHEMA public TO {username};
+                            ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {username};
+                        EXCEPTION 
+                            WHEN duplicate_object THEN NULL;
+                        END $$;
+                    """
+                    )
+            finally:
+                db_conn.close()
 
             config = PostgresConfig(
                 database=db_name,
-                username=username,
+                user=username,
                 password=password,
                 host=self.admin_connection["host"],
                 port=self.admin_connection.get("port", 5432),
