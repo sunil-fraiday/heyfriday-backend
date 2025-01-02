@@ -11,6 +11,8 @@ def datetime_utc_now():
 class CredentialManager:
     """Manages encryption/decryption of credentials with key rotation support"""
 
+    SENSITIVE_FIELDS = ["password", "user", "host", "database"]
+
     def __init__(self, current_key: bytes, old_keys: list[bytes] = None):
         # Initialize with current and old keys for rotation
         keys = [Fernet(current_key)]
@@ -22,9 +24,8 @@ class CredentialManager:
     def encrypt_config(self, config: dict) -> dict:
         """Encrypts sensitive fields using the current key"""
         encrypted_config = config.copy()
-        sensitive_fields = ["password", "username"]
 
-        for field in sensitive_fields:
+        for field in self.SENSITIVE_FIELDS:
             if field in encrypted_config:
                 encrypted_config[field] = self.current_fernet.encrypt(encrypted_config[field].encode()).decode()
 
@@ -33,9 +34,8 @@ class CredentialManager:
     def decrypt_config(self, config: dict) -> dict:
         """Decrypts sensitive fields using current or old keys"""
         decrypted_config = config.copy()
-        sensitive_fields = ["password", "username", "user"]
 
-        for field in sensitive_fields:
+        for field in self.SENSITIVE_FIELDS:
             if field in decrypted_config:
                 decrypted_config[field] = self.fernet.decrypt(decrypted_config[field].encode()).decode()
 

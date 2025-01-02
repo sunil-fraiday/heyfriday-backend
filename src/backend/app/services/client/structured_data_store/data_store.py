@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import HTTPException
 
 from app.models.schemas.database_config import DatabaseConfig
@@ -60,13 +60,11 @@ class ClientStructuredDataStoreService:
             logger.error(f"Error creating {database_type} database for client {client_id}", exc_info=True)
             raise
 
-    def get_data_store(self, client_id: str, database_type: DatabaseType) -> Optional[DatabaseConfig]:
+    def get_data_store(self, client_id: str, data_store_id: str) -> Optional[DatabaseConfig]:
         """Get decrypted database configuration for a client"""
         try:
             client = Client.objects.get(client_id=client_id)
-            data_store = ClientStructuredDataStore.objects.get(
-                client=client, database_type=database_type, is_active=True
-            )
+            data_store = ClientStructuredDataStore.objects.get(client=client, id=data_store_id, is_active=True)
             return data_store
 
         except (Client.DoesNotExist, ClientStructuredDataStore.DoesNotExist):
@@ -76,6 +74,15 @@ class ClientStructuredDataStoreService:
         except Exception as e:
             logger.error(f"Error getting database config for client {client_id}", exc_info=True)
             raise
+
+    def list_data_stores(self, client_id: str) -> List[DatabaseConfig]:
+        """List all active database configurations for a client"""
+        try:
+            client = Client.objects.get(client_id=client_id)
+            data_stores = ClientStructuredDataStore.objects(client=client)
+            return data_stores
+        except Client.DoesNotExist:
+            raise HTTPException(status_code=404, detail=f"Client not found for client: {client_id}")
 
     def deactivate_client_database(self, client_id: str, database_type: DatabaseType) -> None:
         """Deactivate a client's database"""

@@ -30,12 +30,12 @@ class ClickHouseService(BaseDataStoreService):
 
             with self.driver.Client(**self.admin_connection) as ch:
                 ch.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-                ch.execute(f"CREATE USER IF NOT EXISTS {username} IDENTIFIED BY '{password}'")
-                ch.execute(f"GRANT ALL ON {db_name}.* TO {username}")
+                ch.execute(f"CREATE USER IF NOT EXISTS {username} IDENTIFIED BY '{password}'")                
+                ch.execute(f"GRANT SELECT ON {db_name}.* TO {username}")                
 
             config = ClickHouseConfig(
                 database=db_name,
-                username=username,
+                user=username,
                 password=password,
                 host=self.admin_connection["host"],
                 port=self.admin_connection.get("port", 9000),
