@@ -217,6 +217,11 @@ def send_to_webhook_task(self, message_data: dict):
         response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
 
+        response_data = response.json()
+        if "id" in response_data:
+            message.external_id = response_data["id"]
+            message.save()
+
         # Log the successful attempt
         ChannelRequestLogService.log_attempt(
             request_log=request_log,

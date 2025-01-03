@@ -26,6 +26,7 @@ class ChatMessageCreate(BaseChatMessageCreate):
     client_id: str = None
     client_channel_type: str = None
     session_id: str = None
+    external_id: Optional[str] = None
 
 
 class BulkChatMessageCreate(BaseModel):

@@ -2,12 +2,14 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 import mongoengine as me
+from mongoengine import Q
 from fastapi import HTTPException
 
 from app.models.mongodb.chat_message import ChatMessage
 from app.models.mongodb.chat_message_feedback import ChatMessageFeedback
 from app.schemas.chat_message_feedback import ChatMessageFeedbackCreate, ChatMessageFeedbackResponse
 from app.utils.logger import get_logger
+from .message import get_id_filter
 
 logger = get_logger(__name__)
 
@@ -19,7 +21,7 @@ class ChatMessageFeedbackService:
         Create a new feedback for a chat message.
         """
         try:
-            chat_message = ChatMessage.objects.get(id=chat_message_id)
+            chat_message = ChatMessage.objects.get(**get_id_filter(chat_message_id))
         except me.DoesNotExist:
             raise HTTPException(status_code=404, detail="Chat message not found")
 
@@ -65,7 +67,7 @@ class ChatMessageFeedbackService:
         Get all feedback for a specific message.
         """
         try:
-            chat_message = ChatMessage.objects.get(id=message_id)
+            chat_message = ChatMessage.objects.get(**get_id_filter(message_id))
         except me.DoesNotExist:
             raise HTTPException(status_code=404, detail="Chat message not found")
 

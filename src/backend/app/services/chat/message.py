@@ -1,4 +1,5 @@
-from typing import List, Optional
+from bson import ObjectId
+from typing import List, Optional, Dict
 from datetime import datetime, timezone
 
 import mongoengine as me
@@ -9,6 +10,14 @@ from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
+
+
+def get_id_filter(message_id: str) -> Dict:
+
+    if ObjectId.is_valid(message_id):
+        return {"id": message_id}
+    else:
+        return {"external_id": message_id}
 
 
 class ChatMessageService:
@@ -38,6 +47,7 @@ class ChatMessageService:
             sender_name=message_data.sender_name,
             attachments=attachments,
             category=message_data.category.value,
+            external_id=message_data.external_id,
         )
         chat_message.save()
 
@@ -56,7 +66,7 @@ class ChatMessageService:
     ) -> List[ChatMessageResponse]:
         query = {}
         if id:
-            query["id"] = id
+            query.update(get_id_filter(id))
         if session_id:
             try:
                 chat_session = ChatSession.objects.get(session_id=session_id)
@@ -83,7 +93,7 @@ class ChatMessageService:
     @staticmethod
     def get_message(message_id: str) -> ChatMessageResponse:
         try:
-            chat_message = ChatMessage.objects.get(id=message_id)
+            chat_message = ChatMessage.objects.get(**get_id_filter(message_id))
             return ChatMessageResponse.from_chat_message(chat_message)
         except me.DoesNotExist:
             raise HTTPException(status_code=404, detail="Message not found")
@@ -91,7 +101,7 @@ class ChatMessageService:
     @staticmethod
     def update_chat_message(message_id: str, message_data: ChatMessageCreate) -> ChatMessageResponse:
         try:
-            chat_message = ChatMessage.objects.get(id=message_id)
+            chat_message = ChatMessage.objects.get(**get_id_filter(message_id))
         except me.DoesNotExist:
             raise HTTPException(status_code=404, detail="Message not found")
 
