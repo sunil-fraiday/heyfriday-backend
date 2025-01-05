@@ -218,7 +218,7 @@ def send_to_webhook_task(self, message_data: dict):
         response.raise_for_status()
 
         response_data = response.json()
-        if "id" in response_data:
+        if response_data and "id" in response_data:
             message.external_id = response_data["id"]
             message.save()
 
