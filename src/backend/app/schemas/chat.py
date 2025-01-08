@@ -48,6 +48,7 @@ class ChatMessageResponse(BaseModel):
     data: Optional[dict] = Field(default_factory=dict)
     attachments: Optional[List[AttachmentCreate]]
     category: MessageCategory
+    confidence_score: float
     edit: bool = False
 
     @classmethod
@@ -62,9 +63,12 @@ class ChatMessageResponse(BaseModel):
             text=chat_message.text,
             data=chat_message.data,
             attachments=(
-                [AttachmentCreate(**a.to_mongo().to_dict()) for a in chat_message.attachments] if chat_message.attachments else None
+                [AttachmentCreate(**a.to_mongo().to_dict()) for a in chat_message.attachments]
+                if chat_message.attachments
+                else None
             ),
             category=MessageCategory(chat_message.category),
             sender_type=chat_message.sender_type,
             edit=chat_message.edit,
+            confidence_score=chat_message.confidence_score,
         )

@@ -98,6 +98,7 @@ def identify_intent_task(self, message_id: str):
                 session=session,
                 error_message=CATEGORY_ERROR_MESSAGE,
                 message_category=MessageCategory.INFO,
+                confidence_score=0.0
             )
             send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
             if self.request.chain:  # Stop the chain if not in allowed categories
@@ -196,6 +197,7 @@ def generate_ai_response_task(self, session_data: dict):
             sender_type=SenderType.ASSISTANT,
             text=processed_message.data.answer.answer_text,
             data={"sql_data": processed_message.data.answer.answer_data},
+            confidence_score=processed_message.data.confidence_score,
         )
         ai_message.save()
 

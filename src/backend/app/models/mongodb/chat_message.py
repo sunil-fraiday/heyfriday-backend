@@ -40,6 +40,7 @@ class ChatMessage(BaseDocument):
     category = fields.StringField(
         choices=[cat.value for cat in MessageCategory], default=MessageCategory.MESSAGE.value
     )
+    confidence_score = fields.FloatField(default=0.0)
 
     edit = fields.BooleanField(default=False)
     meta = {"collection": "chat_messages", "indexes": ["created_at", "session", ("session", "created_at")]}
