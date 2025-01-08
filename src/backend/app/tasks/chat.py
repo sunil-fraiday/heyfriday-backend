@@ -78,7 +78,7 @@ def identify_intent_task(self, message_id: str):
             model_name="mistral.mistral-large-2402-v1:0",
         )
         intent = analysis_service.analyse_category(
-            current_message=chat_message,
+            chat_message=chat_message,
             chat_history=ChatMessageService.list_messages(
                 session_id=chat_message.session.session_id, last_n=30, exclude_id=[message_id]
             ),

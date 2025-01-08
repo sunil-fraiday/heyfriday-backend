@@ -100,7 +100,7 @@ class MessageAnalysisService:
             )
 
             ChatMessageAnalysis(
-                chat_message_id=chat_message.id,
+                chat_message=chat_message,
                 analysis_type=AnalysisType.CATEGORY,
                 status=ExecutionStatus.COMPLETED,
                 analysis_data=result,
