@@ -2,11 +2,7 @@ from mongoengine import fields
 from enum import Enum
 
 from app.models.mongodb.base import BaseDocument
-
-
-class RecapStatus(str, Enum):
-    COMPLETED = "completed"
-    FAILED = "failed"
+from app.models.mongodb.enums import ExecutionStatus
 
 
 class ChatSessionRecap(BaseDocument):
@@ -15,7 +11,9 @@ class ChatSessionRecap(BaseDocument):
 
     recap_data = fields.DictField(nulllable=True)
 
-    status = fields.StringField(choices=[status.value for status in RecapStatus], default=RecapStatus.COMPLETED)
+    status = fields.StringField(
+        choices=[status.value for status in ExecutionStatus], default=ExecutionStatus.COMPLETED
+    )
     error_message = fields.StringField()
 
     meta = {

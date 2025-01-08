@@ -15,7 +15,7 @@ from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.client import KeycloakConfig
 from app.models.mongodb.channel_request_log import ChannelRequestLog
 from app.services.ai_service import AIService
-from app.services.intent_classification import IntentClassificationService
+from app.services.analysis import MessageAnalysisService
 from app.services.chat.utils import create_system_chat_message
 from app.services.chat.message import ChatMessageService
 from app.services.client import ChannelRequestLogService, ClientChannelService
@@ -46,11 +46,19 @@ We couldn't generate a response to your message.
 Please try rephrasing your message and try again.
 """
 
+CATEGORY_ERROR_MESSAGE = """
+I understand your query requires specific expertise. I'm connecting you
+with one of our support specialists who will be able to assist you further.
+A team member will be with you shortly.
+"""
+
 WEBHOOK_ERROR_MESSAGE = """
 📡 Delivery Failed!
 Your message was processed, but we couldn't respond.
 We'll retry shortly, or you can contact support if this persists.
 """
+
+ALLOWED_CATEGORIES = ["general_inquiry", "general_troubleshooting"]
 
 
 @shared_task(bind=True)
@@ -62,27 +70,38 @@ def identify_intent_task(self, message_id: str):
         chat_message = ChatMessage.objects.get(id=message_id)
         message_data = chat_message.text
         logger.info(f"Message: {message_data}")
-        intent_service = IntentClassificationService(
+        analysis_service = MessageAnalysisService(
             aws_runtime=settings.AWS_BEDROCK_RUNTIME,
             region_name=settings.AWS_BEDROCK_REGION,
             access_key_id=settings.AWS_BEDROCK_ACCESS_KEY_ID,
             secret_access_key=settings.AWS_BEDROCK_SECRET_ACCESS_KEY,
             model_name="mistral.mistral-large-2402-v1:0",
         )
-        intent = intent_service.classify_with_bedrock(
+        intent = analysis_service.analyse_category(
             current_message=message_data,
             chat_history=ChatMessageService.list_messages(
-                session_id=chat_message.session.session_id, last_n=6, exclude_id=[message_id]
+                session_id=chat_message.session.session_id, last_n=30, exclude_id=[message_id]
             ),
-            resource_scope_mapping={},
         )
-        logger.info(f"Intent: {intent}")
-        # Pass session and message data to the next task
-        return {
-            "session_id": str(chat_message.session.id),
-            "message_id": str(chat_message.id),
-            "intent": intent,  # Pass the intent to the next task
-        }
+        logger.info(f"Category: {intent}")
+        category = intent.get("category")
+        if category in ALLOWED_CATEGORIES:
+            # Pass session and message data to the next task
+            return {
+                "session_id": str(chat_message.session.id),
+                "message_id": str(chat_message.id),
+                "intent": intent,  # Pass the intent to the next task
+            }
+        else:
+            session = ChatMessage.objects.get(id=message_id).session
+            message = create_system_chat_message(
+                session=session,
+                error_message=CATEGORY_ERROR_MESSAGE,
+                message_category=MessageCategory.INFO,
+            )
+            send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+            if self.request.chain:  # Stop the chain if not in allowed categories
+                self.request.chain[:] = []
 
     except Exception as exc:
         session = ChatMessage.objects.get(id=message_id).session
@@ -144,8 +163,8 @@ def authorization(self, session_data: dict):
                     message_category=MessageCategory.INFO,
                 )
                 send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
-                if self.request.callbacks: # Stop the chain if unauthorized
-                    self.request.callbacks[:] = []
+                if self.request.chain:  # Stop the chain if not in allowed categories
+                    self.request.chain[:] = []
 
         logger.info("Resource or Scope was not identified from the Intent classifier so skipping authorization.")
     except Exception as exc:
