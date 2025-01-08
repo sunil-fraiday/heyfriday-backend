@@ -24,6 +24,7 @@ class Client(BaseDocument):
     client_key = fields.StringField(required=True, unique=True)
     keycloak_config = fields.DictField(required=False, default=None)
     max_structured_data_stores = fields.IntField(required=False, default=1)
+    max_unstructured_data_stores = fields.IntField(required=False, default=1)
 
     is_active = fields.BooleanField(default=True)
 

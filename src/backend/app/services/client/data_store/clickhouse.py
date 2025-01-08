@@ -1,7 +1,7 @@
 from app.models.mongodb.client import Client
 from app.utils.logger import get_logger
 
-from app.models.mongodb.client_structured_data_store import ClientStructuredDataStore
+from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.utils import CredentialManager
 from app.models.schemas.database_config import ClickHouseConfig
 from app.models.mongodb.enums import DatabaseType
@@ -20,7 +20,7 @@ class ClickHouseService(BaseDataStoreService):
 
         self.driver = clickhouse_driver
 
-    def create_database(self, client: Client) -> "ClientStructuredDataStore":
+    def create_database(self, client: Client) -> "ClientDataStore":
         """Create a new ClickHouse database for a client"""
         self._check_data_store_limit(client)
 
@@ -42,7 +42,7 @@ class ClickHouseService(BaseDataStoreService):
                 secure=True,
             )
 
-            data_store = ClientStructuredDataStore(
+            data_store = ClientDataStore(
                 client=client,
                 database_type=DatabaseType.CLICKHOUSE,
                 config=self.credential_manager.encrypt_config(config.model_dump()),

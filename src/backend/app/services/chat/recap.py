@@ -6,7 +6,7 @@ from langchain_aws import ChatBedrock
 from langchain_core.prompts import PromptTemplate
 from app.utils.logger import get_logger
 from app.models.mongodb.chat_session import ChatSession
-from app.models.mongodb.chat_session_recap import ChatSessionRecap, RecapStatus
+from app.models.mongodb.chat_session_recap import ChatSessionRecap, ExecutionStatus
 from app.schemas.chat import ChatMessageResponse
 
 from .prompt import CHAT_RECAP_PROMPT_TEMPLATE, SYSTEM_PROMPT
@@ -57,7 +57,7 @@ class ChatRecapService:
                 chat_session=chat_session,
                 chat_messages=[m.id for m in messages],
                 recap_data=recap_data,
-                status=RecapStatus.COMPLETED,
+                status=ExecutionStatus.COMPLETED,
             )
             recap.save()
 
@@ -71,7 +71,7 @@ class ChatRecapService:
                 chat_session=chat_session,
                 chat_messages=[m.id for m in messages],
                 recap_data={},
-                status=RecapStatus.FAILED,
+                status=ExecutionStatus.FAILED,
                 error_message=traceback.format_exc() + str(e),
             )
             recap.save()

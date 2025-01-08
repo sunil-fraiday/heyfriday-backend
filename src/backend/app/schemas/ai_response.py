@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models.mongodb.chat_message import SenderType
 
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 from .chat import ChatMessageResponse
 
 
@@ -14,6 +14,7 @@ class Answer(BaseModel):
 
 class Data(BaseModel):
     answer: Answer
+    confidence_score: Optional[float] = Field(default=0.9)
 
 
 class AIResponse(BaseModel):

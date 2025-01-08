@@ -2,9 +2,9 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 
-from app.services.client.structured_data_store import ClientStructuredDataStoreService
+from app.services.client.data_store import ClientDataStoreService
 from app.models.mongodb.utils import CredentialManager
-from app.models.mongodb.client_structured_data_store import ClientStructuredDataStore
+from app.models.mongodb.client_data_store import ClientDataStore
 from app.schemas.client.structured_data_store import ClientStructuredDataStoreResponse
 from app.core.config import settings
 from app.utils.logger import get_logger
@@ -41,8 +41,8 @@ async def get_database_config(client_id: str, data_store_id: str, api_key: Optio
     """
     try:
         credential_manager = CredentialManager(current_key=settings.ENCRYPTION_KEY)
-        store_service = ClientStructuredDataStoreService(credential_manager=credential_manager)
-        data_store: ClientStructuredDataStore = store_service.get_data_store(
+        store_service = ClientDataStoreService(credential_manager=credential_manager)
+        data_store: ClientDataStore = store_service.get_data_store(
             client_id=client_id, data_store_id=data_store_id
         )
         config = data_store.get_config(credential_manager)
@@ -66,8 +66,8 @@ async def get_database_config(client_id: str):
     """"""
     try:
         credential_manager = CredentialManager(current_key=settings.ENCRYPTION_KEY)
-        store_service = ClientStructuredDataStoreService(credential_manager=credential_manager)
-        data_stores: List[ClientStructuredDataStore] = store_service.list_data_stores(client_id=client_id)
+        store_service = ClientDataStoreService(credential_manager=credential_manager)
+        data_stores: List[ClientDataStore] = store_service.list_data_stores(client_id=client_id)
         return [
             ClientStructuredDataStoreResponse(
                 id=str(data_store.id), database_type=data_store.database_type, is_active=data_store.is_active

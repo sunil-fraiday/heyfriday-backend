@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.services.chat.message import ChatMessageService
 from app.services.chat.recap import ChatRecapService
 from app.schemas.chat_session_recap import ChatSessionRecapResponse
-from app.models.mongodb.chat_session_recap import RecapStatus
+from app.models.mongodb.chat_session_recap import ExecutionStatus
 from app.models.mongodb.chat_session import ChatSession
 from app.utils.logger import get_logger
 from app.core.config import settings
@@ -25,7 +25,7 @@ def generate_session_recap(
         messages = ChatMessageService.list_messages(session_id=session_id)
 
         if not messages:
-            raise HTTPException(status_code=400, detail="No messages found for recap generation")
+            raise HTTPException(status_code=404, detail="No messages found for recap generation")
 
         recap = ChatRecapService(
             aws_runtime=settings.AWS_BEDROCK_RUNTIME,
@@ -35,11 +35,12 @@ def generate_session_recap(
             model_name="mistral.mistral-large-2402-v1:0",
         ).generate_recap(chat_session=session, messages=messages)
 
-        if recap.status == RecapStatus.FAILED:
+        if recap.status == ExecutionStatus.FAILED:
             raise HTTPException(status_code=400, detail=f"Failed to generate recap. Please try again.")
 
         return ChatSessionRecapResponse(session_id=session_id, **recap.to_serializable_dict())
-
+    except ChatSession.DoesNotExist:
+        raise HTTPException(status_code=404, detail="Chat session not found")
     except Exception as e:
         logger.error(f"Error generating recap: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating recap. Please try again")

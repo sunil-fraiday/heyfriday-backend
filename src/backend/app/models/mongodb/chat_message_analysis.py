@@ -27,7 +27,7 @@ class ChatMessageAnalysis(BaseDocument):
             "analysis_type",
             ("chat_message", "analysis_type"),
             ("chat_message", "-created_at"),
-            {"fields": ["processing_status"], "sparse": True},
+            {"fields": ["status"], "sparse": True},
         ],
     }
 

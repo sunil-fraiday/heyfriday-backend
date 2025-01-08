@@ -3,7 +3,8 @@ import secrets
 import string
 from typing import Tuple
 from app.models.mongodb.client import Client
-from app.models.mongodb.client_structured_data_store import ClientStructuredDataStore, CredentialManager
+from app.models.mongodb.client_data_store import ClientDataStore, CredentialManager
+from app.models.mongodb.enums import EngineType
 
 
 class BaseDataStoreService(ABC):
@@ -20,17 +21,20 @@ class BaseDataStoreService(ABC):
         password = "".join(secrets.choice(alphabet) for _ in range(32))
         return username, password
 
-    def _check_data_store_limit(self, client: Client) -> None:
-        """Check if client has reached their data store limit"""
-        current_stores = ClientStructuredDataStore.objects(client=client, is_active=True).count()
+    def _check_data_store_limit(self, client: Client, engine_type: EngineType) -> None:
+        """Check if client has reached their data store limit for given engine type"""
+        current_stores = ClientDataStore.objects(client=client, engine_type=engine_type.value, is_active=True).count()
 
-        max_stores = client.max_structured_data_stores if hasattr(client, "max_structured_data_stores") else 1
+        if engine_type == EngineType.STRUCTURED:
+            max_stores = client.max_structured_data_stores if hasattr(client, "max_structured_stores") else 1
+        else:
+            max_stores = client.max_unstructured_data_stores if hasattr(client, "max_unstructured_stores") else 1
 
         if current_stores >= max_stores:
-            raise Exception(f"Client has reached maximum number of data stores ({max_stores})")
+            raise ValueError(f"Client has reached maximum number of {engine_type.value} data stores ({max_stores})")
 
     @abstractmethod
-    def create_database(self, client: Client) -> "ClientStructuredDataStore":
+    def create_database(self, client: Client) -> "ClientDataStore":
         """Create a new database for a client"""
         pass
 
