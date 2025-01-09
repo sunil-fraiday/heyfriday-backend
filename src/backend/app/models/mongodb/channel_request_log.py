@@ -18,7 +18,7 @@ class EntityType(str, Enum):
 class ChannelRequestLog(BaseDocument):
     entity_type = fields.StringField(choices=[e.value for e in EntityType], default=EntityType.CHAT_MESSAGE.value)
     entity_id = fields.StringField(required=True)
-    chat_message = fields.ReferenceField("ChatMessage", required=True)
+    chat_message = fields.ReferenceField("ChatMessage", required=False)
     client_channel = fields.ReferenceField("ClientChannel", required=True)
     request_payload = fields.DictField(nullable=True)
     request_headers = fields.DictField(nullable=True)
@@ -32,7 +32,6 @@ class ChannelRequestLog(BaseDocument):
         "indexes": [
             "created_at",
             "updated_at",
-            "chat_message",
             "client_channel",
             "entity_id",
             "entity_type",

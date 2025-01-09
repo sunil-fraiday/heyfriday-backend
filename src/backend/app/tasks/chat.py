@@ -199,9 +199,10 @@ def generate_ai_response_task(self, session_data: dict):
 
         processor = AIService()
         processed_message = processor.get_response(message_id=message_id)
-
-        ai_enabled = message.config.ai_enabled
-        suggestion_mode = message.config.suggestion_mode
+        
+        chat_message_config = message.get_message_config()
+        ai_enabled = chat_message_config.ai_enabled
+        suggestion_mode = chat_message_config.suggestion_mode
 
         response_data = {"session_id": str(message.session.id)}
         if not ai_enabled and suggestion_mode:
@@ -257,14 +258,11 @@ def send_to_webhook_task(self, message_data: dict):
             EntityType.CHAT_MESSAGE: MessagePayloadStrategy(),
             EntityType.CHAT_SUGGESTION: SuggestionPayloadStrategy(),
         }
-        strategy: MessagePayloadStrategy = strategies[entity_type]
+        strategy = strategies[entity_type]
 
         # Get message based on strategy type
         entity = strategy.get_entity(entity_id=entity_id)
-        session = strategy.get_session(entity_id=entity_id)
-
-        message_id = message_data["message_id"]
-        message: ChatMessage = ChatMessage.objects.get(id=message_id)
+        session = strategy.get_session(entity=entity)
 
         # Get or create the ChannelRequestLog
         request_log, created = ChannelRequestLogService.get_or_create(
@@ -272,8 +270,8 @@ def send_to_webhook_task(self, message_data: dict):
             channel=session.client_channel,
         )
         webhook_url = ClientChannelService.get_channel_webhook_url(
-            client_id=message.session.client.id,
-            channel_id=message.session.client_channel.id,
+            client_id=session.client.id,
+            channel_id=session.client_channel.id,
         )
 
         payload = strategy.create_payload(entity=entity)

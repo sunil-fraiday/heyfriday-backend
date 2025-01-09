@@ -48,3 +48,8 @@ class ChatMessage(BaseDocument):
 
     def is_suggestion_mode(self):
         return self.config and self.config.get("suggestion_mode", False)
+
+    def get_message_config(self):
+        from app.schemas.chat import MessageConfig
+
+        return MessageConfig.model_validate(self.config)
