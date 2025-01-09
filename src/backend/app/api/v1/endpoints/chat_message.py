@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.services.chat.message import ChatMessageService
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
-from app.tasks.chat import trigger_chat_workflow
+from app.tasks.chat import trigger_chat_workflow, trigger_suggestion_workflow
 
 router = APIRouter(prefix="/messages", tags=["Chat Messages"])
 
@@ -12,7 +12,15 @@ router = APIRouter(prefix="/messages", tags=["Chat Messages"])
 async def create_message(message_data: ChatMessageCreate):
     print("Received message data:", message_data.model_dump_json())
     chat_message = ChatMessageService.create_chat_message(message_data)
-    trigger_chat_workflow(message_id=str(chat_message.id))
+
+    ai_enabled = chat_message.config.get("ai_enabled", True)
+    suggestion_mode = chat_message.config.get("suggestion_mode", False)
+
+    if ai_enabled and not suggestion_mode:
+        trigger_chat_workflow(message_id=str(chat_message.id))
+    elif not ai_enabled and suggestion_mode:
+        trigger_suggestion_workflow(message_id=str(chat_message.id))
+
     return chat_message
 
 

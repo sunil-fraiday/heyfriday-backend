@@ -102,7 +102,9 @@ def identify_intent_task(self, message_id: str):
                 message_category=MessageCategory.INFO,
                 confidence_score=0.0,
             )
-            send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+            send_to_webhook_task.delay(
+                message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+            )
             if self.request.chain:  # Stop the chain if not in allowed categories
                 self.request.chain[:] = []
 
@@ -113,7 +115,9 @@ def identify_intent_task(self, message_id: str):
             error_message=INTENT_CLASSIFICATION_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+        send_to_webhook_task.delay(
+            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+        )
         raise exc  # Stop the chain if there is an exception here
 
 
@@ -165,7 +169,9 @@ def authorization(self, session_data: dict):
                     error_message=UNAUTHORIZED_MESSAGE,
                     message_category=MessageCategory.INFO,
                 )
-                send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+                send_to_webhook_task.delay(
+                    message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+                )
                 if self.request.chain:  # Stop the chain if not in allowed categories
                     self.request.chain[:] = []
 
@@ -178,7 +184,9 @@ def authorization(self, session_data: dict):
             error_message=AUTHORIZATION_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+        send_to_webhook_task.delay(
+            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+        )
         raise exc
 
 
@@ -231,7 +239,9 @@ def generate_ai_response_task(self, session_data: dict):
             error_message=AI_SERVICE_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
+        send_to_webhook_task.delay(
+            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+        )
         raise exc  # Stop the chain
 
 
@@ -286,7 +296,9 @@ def send_to_webhook_task(self, message_data: dict):
         logger.error(f"Webhook notification failed: {exc}")
 
         # Log the failed attempt
-        request_log = ChannelRequestLog.objects.get(chat_message=message_id)  # Ensure we fetch the log
+        request_log = ChannelRequestLog.objects.get(
+            entity_id=entity_id, entity_type=entity_type
+        )  # Ensure we fetch the log
         ChannelRequestLogService.log_attempt(
             request_log=request_log,
             attempt_number=self.request.retries + 1,
@@ -298,13 +310,9 @@ def send_to_webhook_task(self, message_data: dict):
     except Exception as exc:
         # For internal errors, just log and fail gracefully
         logger.error(
-            "Critical internal error in webhook task", 
-            extra={
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "error": str(exc)
-            },
-            exc_info=True
+            "Critical internal error in webhook task",
+            extra={"entity_id": entity_id, "entity_type": entity_type, "error": str(exc)},
+            exc_info=True,
         )
         raise
 

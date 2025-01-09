@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.mongodb.chat_message import MessageCategory, ChatMessage
+from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
 
 
 class MessageConfig(BaseModel):
@@ -55,6 +56,7 @@ class ChatMessageResponse(BaseModel):
     attachments: Optional[List[AttachmentCreate]]
     category: MessageCategory
     confidence_score: float
+    external_id: Optional[str] = None
     edit: bool = False
 
     @classmethod
@@ -77,4 +79,32 @@ class ChatMessageResponse(BaseModel):
             sender_type=chat_message.sender_type,
             edit=chat_message.edit,
             confidence_score=chat_message.confidence_score,
+            external_id=chat_message.external_id,
+        )
+
+
+class ChatMessageSuggestionResponse(BaseModel):
+    id: str = Field(description="Suggestion ID")
+    chat_message: ChatMessageResponse
+    session_id: str
+    text: str
+    data: Optional[dict] = Field(default_factory=dict)
+    attachments: Optional[List[AttachmentCreate]]
+
+    @classmethod
+    def from_suggestion(cls, suggestion: "ChatMessageSuggestion") -> "ChatMessageSuggestionResponse":
+        """Creates a response model from a ChatMessageSuggestion instance"""
+        return cls(
+            id=str(suggestion.id),
+            created_at=suggestion.created_at,
+            updated_at=suggestion.updated_at,
+            chat_message=ChatMessageResponse.from_chat_message(suggestion.chat_message),
+            session_id=str(suggestion.chat_session.session_id),
+            text=suggestion.text,
+            attachments=(
+                [AttachmentCreate(**a.to_mongo().to_dict()) for a in suggestion.attachments]
+                if suggestion.attachments
+                else None
+            ),
+            data=suggestion.data,
         )
