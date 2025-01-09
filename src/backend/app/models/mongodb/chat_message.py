@@ -45,3 +45,6 @@ class ChatMessage(BaseDocument):
 
     edit = fields.BooleanField(default=False)
     meta = {"collection": "chat_messages", "indexes": ["created_at", "session", ("session", "created_at")]}
+
+    def is_suggestion_mode(self):
+        return self.config and self.config.get("suggestion_mode", False)

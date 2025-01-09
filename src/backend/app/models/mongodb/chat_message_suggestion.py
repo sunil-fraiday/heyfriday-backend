@@ -12,6 +12,8 @@ class ChatMessageSuggestion(BaseDocument):
     attachments = fields.EmbeddedDocumentListField(Attachment)
     data = fields.DictField()
 
+    external_id = fields.StringField(nullable=True)
+
     meta = {
         "collection": "chat_message_suggestions",
         "indexes": ["created_at", "chat_session", "chat_message", ("chat_session", "created_at")],

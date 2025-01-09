@@ -12,14 +12,16 @@ from app.db.mongodb_utils import connect_to_db
 from app.schemas.chat import ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
+from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
 from app.models.mongodb.client import KeycloakConfig
-from app.models.mongodb.channel_request_log import ChannelRequestLog
+from app.models.mongodb.channel_request_log import ChannelRequestLog, EntityType
 from app.services.ai_service import AIService
 from app.services.analysis import MessageAnalysisService
 from app.services.chat.utils import create_system_chat_message
 from app.services.chat.message import ChatMessageService
 from app.services.client import ChannelRequestLogService, ClientChannelService
 from app.services.keycloak import KeycloakAuthorizationService
+from app.services.webhook import MessagePayloadStrategy, SuggestionPayloadStrategy
 
 logger = get_task_logger(__name__)
 
@@ -98,7 +100,7 @@ def identify_intent_task(self, message_id: str):
                 session=session,
                 error_message=CATEGORY_ERROR_MESSAGE,
                 message_category=MessageCategory.INFO,
-                confidence_score=0.0
+                confidence_score=0.0,
             )
             send_to_webhook_task.delay(message_data={"message_id": str(message.id)})
             if self.request.chain:  # Stop the chain if not in allowed categories
@@ -185,24 +187,41 @@ def generate_ai_response_task(self, session_data: dict):
     try:
         logger.info(f"Session data: {session_data}")
         message_id = session_data["message_id"]
-        message = ChatMessage.objects.get(id=message_id)
+        message: ChatMessage = ChatMessage.objects.get(id=message_id)
 
         processor = AIService()
         processed_message = processor.get_response(message_id=message_id)
 
-        ai_message = ChatMessage(
-            session=message.session,
-            sender=constants.BOT_SENDER_NAME,
-            sender_name=constants.BOT_SENDER_NAME,
-            sender_type=SenderType.ASSISTANT,
-            text=processed_message.data.answer.answer_text,
-            data={"sql_data": processed_message.data.answer.answer_data},
-            confidence_score=processed_message.data.confidence_score,
-        )
-        ai_message.save()
+        ai_enabled = message.config.ai_enabled
+        suggestion_mode = message.config.suggestion_mode
+
+        response_data = {"session_id": str(message.session.id)}
+        if not ai_enabled and suggestion_mode:
+            suggestion = ChatMessageSuggestion(
+                chat_session=message.session,
+                chat_message=message,
+                text=processed_message.data.answer.answer_text,
+                data={"sql_data": processed_message.data.answer.answer_data},
+            )
+            suggestion.save()
+            response_data["entity_id"] = str(suggestion.id)
+            response_data["entity_type"] = EntityType.CHAT_SUGGESTION.value
+        else:
+            ai_message = ChatMessage(
+                session=message.session,
+                sender=constants.BOT_SENDER_NAME,
+                sender_name=constants.BOT_SENDER_NAME,
+                sender_type=SenderType.ASSISTANT,
+                text=processed_message.data.answer.answer_text,
+                data={"sql_data": processed_message.data.answer.answer_data},
+                confidence_score=processed_message.data.confidence_score,
+            )
+            ai_message.save()
+            response_data["entity_id"] = str(ai_message.id)
+            response_data["entity_type"] = EntityType.CHAT_MESSAGE.value
 
         # Pass message ID to the next task
-        return {"message_id": str(ai_message.id), "session_id": str(message.session.id)}
+        return response_data
 
     except Exception as exc:
         # Send system error message
@@ -221,27 +240,38 @@ def send_to_webhook_task(self, message_data: dict):
     try:
         logger.info(f"Session data: {message_data}")
 
+        entity_id = message_data["entity_id"]
+        entity_type = message_data["entity_type"]
+
+        strategies = {
+            EntityType.CHAT_MESSAGE: MessagePayloadStrategy(),
+            EntityType.CHAT_SUGGESTION: SuggestionPayloadStrategy(),
+        }
+        strategy: MessagePayloadStrategy = strategies[entity_type]
+
+        # Get message based on strategy type
+        entity = strategy.get_entity(entity_id=entity_id)
+        session = strategy.get_session(entity_id=entity_id)
+
         message_id = message_data["message_id"]
         message: ChatMessage = ChatMessage.objects.get(id=message_id)
 
         # Get or create the ChannelRequestLog
         request_log, created = ChannelRequestLogService.get_or_create(
-            chat_message=message,
-            channel=message.session.client_channel,
+            entity=entity,
+            channel=session.client_channel,
         )
-        payload = ChatMessageResponse.from_chat_message(message).model_dump(mode="json")
         webhook_url = ClientChannelService.get_channel_webhook_url(
             client_id=message.session.client.id,
             channel_id=message.session.client_channel.id,
         )
 
+        payload = strategy.create_payload(entity=entity)
         response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
 
         response_data = response.json()
-        if response_data and "id" in response_data:
-            message.external_id = response_data["id"]
-            message.save()
+        strategy.handle_response(entity=entity, response_data=response_data)
 
         # Log the successful attempt
         ChannelRequestLogService.log_attempt(
@@ -266,16 +296,17 @@ def send_to_webhook_task(self, message_data: dict):
         raise self.retry(exc=exc, countdown=60)  # Retry after 60 seconds
 
     except Exception as exc:
-        logger.error(f"Unexpected error: {exc}")
-        # Send system error message if retries fail
-        session = ChatMessage.objects.get(id=message_id).session
-        system_message = create_system_chat_message(
-            session=session,
-            error_message=WEBHOOK_ERROR_MESSAGE,
-            message_category=MessageCategory.ERROR,
+        # For internal errors, just log and fail gracefully
+        logger.error(
+            "Critical internal error in webhook task", 
+            extra={
+                "entity_id": entity_id,
+                "entity_type": entity_type,
+                "error": str(exc)
+            },
+            exc_info=True
         )
-        send_to_webhook_task.delay(message_data={"message_id": str(system_message.id)})
-        raise exc  # Stop the chain
+        raise
 
 
 def trigger_chat_workflow(message_id: str):
@@ -286,6 +317,17 @@ def trigger_chat_workflow(message_id: str):
         identify_intent_task.s(message_id),  # First task
         authorization.s(),  # Second task
         generate_ai_response_task.s(),  # Third task
+        send_to_webhook_task.s(),  # Fourth task
+    )
+    process_chain.apply_async()
+
+
+def trigger_suggestion_workflow(message_id: str):
+    """
+    Starts the message processing chain.
+    """
+    process_chain = chain(
+        generate_ai_response_task.s(session_data={"message_id": message_id}),  # Third task
         send_to_webhook_task.s(),  # Fourth task
     )
     process_chain.apply_async()

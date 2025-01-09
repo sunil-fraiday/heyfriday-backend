@@ -7,26 +7,12 @@ from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-class ChatMessageSuggestionService:
-    @staticmethod
-    def create_suggestion(message: ChatMessage) -> ChatMessageSuggestion:
-        """Creates a suggestion based on the original message"""
-        suggestion = ChatMessageSuggestion(
-            chat_session=message.session,
-            chat_message=message,
-            text=message.text,
-            attachments=message.attachments,
-            data=message.data
-        )
-        suggestion.save()
-        return suggestion
 
+class ChatMessageSuggestionService:
     @staticmethod
     def get_suggestions_for_session(chat_session_id: str, limit: int = 10) -> list[ChatMessageSuggestion]:
         """Retrieves recent suggestions for a chat session"""
-        return ChatMessageSuggestion.objects(
-            chat_session=chat_session_id
-        ).order_by('-created_at').limit(limit)
+        return ChatMessageSuggestion.objects(chat_session=chat_session_id).order_by("-created_at").limit(limit)
 
     @staticmethod
     def get_suggestion(suggestion_id: str) -> Optional[ChatMessageSuggestion]:
