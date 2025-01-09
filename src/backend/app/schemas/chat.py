@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 from app.models.mongodb.chat_message import MessageCategory, ChatMessage
 
 
+class MessageConfig(BaseModel):
+    suggestion_mode: bool = Field(default=False, description="Whether to create suggestions instead of messages")
+    ai_enabled: bool = Field(default=True, description="Whether to enable AI processing")
+
+
 class AttachmentCreate(BaseModel):
     file_name: str
     file_type: str
@@ -26,6 +31,7 @@ class ChatMessageCreate(BaseChatMessageCreate):
     client_id: str = None
     client_channel_type: str = None
     session_id: str = None
+    config: Optional[dict] = Field(default_factory=MessageConfig)
     external_id: Optional[str] = None
 
 

@@ -48,6 +48,7 @@ class ChatMessageService:
             attachments=attachments,
             category=message_data.category.value,
             external_id=message_data.external_id,
+            config=message_data.config,
         )
         chat_message.save()
 

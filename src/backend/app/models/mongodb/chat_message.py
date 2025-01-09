@@ -40,6 +40,7 @@ class ChatMessage(BaseDocument):
     category = fields.StringField(
         choices=[cat.value for cat in MessageCategory], default=MessageCategory.MESSAGE.value
     )
+    config = fields.DictField()
     confidence_score = fields.FloatField(default=0.0)
 
     edit = fields.BooleanField(default=False)
