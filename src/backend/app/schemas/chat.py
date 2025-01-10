@@ -85,6 +85,8 @@ class ChatMessageResponse(BaseModel):
 
 class ChatMessageSuggestionResponse(BaseModel):
     id: str = Field(description="Suggestion ID")
+    created_at: datetime 
+    updated_at: datetime
     chat_message: ChatMessageResponse
     session_id: str
     text: str
