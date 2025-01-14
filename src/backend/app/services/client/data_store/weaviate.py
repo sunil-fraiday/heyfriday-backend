@@ -179,11 +179,8 @@ class WeaviateService(BaseDataStoreService):
     def test_connection(self, config: Dict) -> bool:
         """Test connection to Weaviate with provided configuration"""
         try:
-            test_client = weaviate.Client(
-                url=config["url"], auth_client_secret=weaviate.AuthApiKey(api_key=config["api_key"])
-            )
             if config.get("class_name"):
-                test_client.collections.get(config["class_name"])
+                self.client.collections.get(config["class_name"])
             return True
         except Exception as e:
             logger.error(f"Weaviate connection test failed: {str(e)}")
