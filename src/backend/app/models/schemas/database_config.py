@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict
+from typing import Dict, Optional
 
 
 class DatabaseConfig(BaseModel):
@@ -23,3 +23,14 @@ class PostgresConfig(DatabaseConfig):
     """PostgreSQL specific configuration"""
 
     port: int = Field(default=5432)
+
+
+class WeaviateConfig(BaseModel):
+    """Configuration model for Weaviate instances"""
+
+    url: str
+    api_key: str
+    class_name: Optional[str] = None
+    additional_headers: Dict = Field(default_factory=dict)
+    timeout_config: Dict = Field(default_factory=dict)
+    tenant_config: Dict[str, str] = Field(default_factory=dict)
