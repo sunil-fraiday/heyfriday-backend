@@ -5,6 +5,7 @@ class DatabaseType(str, Enum):
     CLICKHOUSE = "clickhouse"
     POSTGRES = "postgres"
     QDRANT = "qdrant"
+    WEAVIATE = "weaviate"
 
 
 class EngineType(str, Enum):

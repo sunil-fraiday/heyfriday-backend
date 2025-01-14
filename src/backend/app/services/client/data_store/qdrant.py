@@ -7,7 +7,7 @@ from app.models.mongodb.client import Client
 from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.enums import DatabaseType, EngineType
 from app.models.mongodb.utils import CredentialManager
-from app.exceptions import ClientError
+from app.models.schemas.database_config import QdrantConfig
 from app.utils.logger import get_logger
 from .base import BaseDataStoreService
 
@@ -17,17 +17,17 @@ logger = get_logger(__name__)
 class QdrantService(BaseDataStoreService):
     """Service for managing Qdrant vector databases"""
 
-    def __init__(self, admin_connection: dict, credential_manager: "CredentialManager"):
+    def __init__(self, admin_connection: QdrantConfig, credential_manager: "CredentialManager"):
         """
         Initialize with admin connection details and credential manager
         admin_connection should contain api_key for the Qdrant instance
         """
         super().__init__(admin_connection, credential_manager)
         self.client = QdrantClient(
-            url=admin_connection.get("url"),
-            api_key=admin_connection.get("api_key"),
-            timeout=admin_connection.get("timeout", 10.0),
-            https=admin_connection.get("https", False),
+            url=admin_connection.url,
+            api_key=admin_connection.api_key,
+            timeout=admin_connection.timeout,
+            https=admin_connection.https,
         )
 
     def create_database(self, client: Client) -> ClientDataStore:
@@ -40,13 +40,13 @@ class QdrantService(BaseDataStoreService):
                 vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
             )
 
-            config = {
-                "url": self.admin_connection.get("url", "http://localhost:6333"),
-                "collection_name": collection_name,
-                "api_key": self.admin_connection.get("api_key"),
-                "https": self.admin_connection.get("https", True),
-                "timeout": 10.0,
-            }
+            config = QdrantConfig(
+                url=self.admin_connection.get("url"),
+                collection_name=collection_name,
+                api_key=self.admin_connection.get("api_key"),
+                https=self.admin_connection.get("https"),
+                timeout=10.0,
+            )
 
             encrypted_config = self.credential_manager.encrypt_config(config)
 
@@ -65,7 +65,7 @@ class QdrantService(BaseDataStoreService):
         except Exception as e:
             logger.error(f"Error creating Qdrant collection for client {client.client_id}", exc_info=True)
             self._cleanup_failed_creation(collection_name)
-            raise ClientError(f"Failed to create Qdrant collection: {str(e)}")
+            raise ValueError(f"Failed to create Qdrant collection: {str(e)}")
 
     def _cleanup_failed_creation(self, collection_name: str) -> None:
         """Cleanup collection if creation fails"""

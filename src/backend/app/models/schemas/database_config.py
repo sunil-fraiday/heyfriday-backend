@@ -33,4 +33,13 @@ class WeaviateConfig(BaseModel):
     class_name: Optional[str] = None
     additional_headers: Dict = Field(default_factory=dict)
     timeout_config: Dict = Field(default_factory=dict)
-    tenant_config: Dict[str, str] = Field(default_factory=dict)
+
+
+class QdrantConfig(BaseModel):
+    """Configuration model for Qdrant instances"""
+
+    url: str
+    collection_name: Optional[str] = None
+    api_key: str
+    https: bool = Field(default=True)
+    timeout: float = Field(default=10.0)
