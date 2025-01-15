@@ -72,145 +72,222 @@ INTENT_CLASSIFICATION_PROMPT_TEMPLATE = """
         """
 
 category_few_shot_examples = [
+    # General Inquiry - Policy
     {
-        "current_message": "Hi IT team, I need a new monitor for my desk as my current one is too small for my work. Can you help me order one?",
+        "current_message": "What's the process for requesting additional monitors? Do I need manager approval?",
         "chat_history": [],
         "expected_output": {
-            "category": "hardware_equipment_order",
-            "key_details": "Employee requesting new monitor for workspace",
-            "reasoning": "The request is specifically for ordering hardware equipment (monitor) for workplace use",
-        },
+            "category": "general_inquiry",
+            "proceed": True,
+            "key_details": "User requesting information about hardware request process and approval requirements",
+            "reasoning": "This is a policy-related inquiry that can be handled directly with documented information about hardware request procedures."
+        }
     },
+
+    # General Troubleshooting - Early Stage
     {
-        "current_message": "Can't access Slack after joining the team today. Getting an error about account not being set up.",
-        "chat_history": [
-            "Welcome to the team! Let me help you with Slack access.",
-            "Thank you! Yes, I'm trying to log in but getting access denied.",
-        ],
-        "expected_output": {
-            "category": "access_management",
-            "key_details": "New employee unable to access Slack, account setup required",
-            "reasoning": "This involves managing access to a corporate application (Slack) for a new team member",
-        },
-    },
-    {
-        "current_message": "My laptop keeps disconnecting from the office WiFi every few minutes. It's affecting my work.",
-        "chat_history": [
-            "Have you tried restarting your laptop?",
-            "Yes, I did that twice but still having the same issue.",
-        ],
-        "expected_output": {
-            "category": "network_issues",
-            "key_details": "Intermittent WiFi connectivity issues with laptop",
-            "reasoning": "The issue involves network connectivity problems specifically related to WiFi connection stability",
-        },
-    },
-    {
-        "current_message": "Hi, I need to reset my password for my Windows login. It's expired and I can't get in.",
+        "current_message": "Can't connect to the VPN from home. Getting 'Connection Failed' error.",
         "chat_history": [],
         "expected_output": {
-            "category": "password_reset",
-            "key_details": "User requesting Windows login password reset due to expiration",
-            "reasoning": "Direct request for password reset assistance for a system account",
-        },
+            "category": "general_troubleshooting",
+            "proceed": True,
+            "key_details": "User experiencing VPN connection failure from home network",
+            "reasoning": "Common VPN issue that starts with basic troubleshooting. Proceeding to verify basic connectivity and VPN client settings."
+        }
     },
+
+    # General Troubleshooting - Advanced Stage
     {
-        "current_message": "I'm trying to install the new version of Adobe Creative Suite but getting an error code 150.",
+        "current_message": "Still can't connect. Internet is working fine, VPN client is updated, and I've restarted.",
         "chat_history": [
-            "What error message are you seeing exactly?",
-            "It says 'Error 150: Installation failed due to insufficient permissions'",
+            "Is your internet connection working?",
+            "Yes, can browse websites fine",
+            "Please try updating the VPN client",
+            "Done, still same issue",
+            "Let's try restarting your computer",
+            "Just did, no change"
         ],
         "expected_output": {
-            "category": "software_installation",
-            "key_details": "Adobe Creative Suite installation failing with error 150, permission issues",
-            "reasoning": "The conversation involves troubleshooting software installation problems with specific error codes",
-        },
+            "category": "general_troubleshooting",
+            "proceed": False,
+            "key_details": "Persistent VPN connection failure. Confirmed: internet working, client updated, restart attempted. Basic troubleshooting exhausted",
+            "reasoning": "While started as general troubleshooting, basic steps haven't resolved the issue. Comprehensive troubleshooting history gathered, now requires network team investigation."
+        }
     },
+
+    # Technical Troubleshooting - Initial Assessment
     {
-        "current_message": "My Outlook keeps crashing when I try to open attachments. I've tried restarting but it's still happening.",
+        "current_message": "Excel keeps crashing when I try to open files containing macros. Already tried repair and reinstall.",
         "chat_history": [],
         "expected_output": {
             "category": "technical_troubleshooting",
-            "key_details": "Outlook application crashing specifically when handling attachments",
-            "reasoning": "This requires specific technical troubleshooting as it involves application behavior with particular conditions",
-        },
+            "proceed": True,
+            "key_details": "Excel crashing specifically with macro files. User has attempted repair and reinstall",
+            "reasoning": "Complex application issue but proceeding to gather specific error messages and verify macro security settings before specialist handoff."
+        }
     },
+
+    # Software Installation - Initial Request
     {
-        "current_message": "What are the working hours for the IT helpdesk? I might need support over the weekend.",
+        "current_message": "Need to install Python and some data science packages for a new project.",
         "chat_history": [],
         "expected_output": {
-            "category": "general_inquiry",
-            "key_details": "User asking about IT helpdesk operating hours and weekend availability",
-            "reasoning": "This is a simple information request about service availability, not requiring any technical support or troubleshooting",
-        },
+            "category": "software_installation",
+            "proceed": True,
+            "key_details": "User requesting Python installation with data science packages for project work",
+            "reasoning": "While software installation category, proceeding to gather specific package requirements and verify if they're pre-approved for installation."
+        }
     },
+
+    # Hardware Equipment - Assessment
     {
-        "current_message": "Hi, where can I find the company's policy on bringing personal devices to work? I'd like to use my own laptop sometimes.",
+        "current_message": "My laptop battery only lasts 30 minutes now. It's only 6 months old.",
         "chat_history": [],
         "expected_output": {
-            "category": "general_inquiry",
-            "key_details": "Employee requesting information about BYOD (Bring Your Own Device) policy",
-            "reasoning": "This is an informational query about company IT policies without any technical issues to resolve",
-        },
+            "category": "hardware_equipment_order",
+            "proceed": True,
+            "key_details": "Laptop battery degradation issue, 6-month-old device with 30-minute battery life",
+            "reasoning": "Though hardware issue, proceeding to gather usage patterns and run battery diagnostics before replacement request."
+        }
     },
+
+    # Password Reset - Simple
     {
-        "current_message": "My microphone isn't working in Microsoft Teams. The icon shows it's on but nobody can hear me.",
-        "chat_history": ["Have you checked if it's selected as the default device?", "Where do I check that?"],
-        "expected_output": {
-            "category": "general_troubleshooting",
-            "key_details": "User experiencing microphone issues in Teams meetings, needs help with audio settings",
-            "reasoning": "This is a common audio configuration issue that can be resolved with basic troubleshooting steps like checking device settings",
-        },
-    },
-    {
-        "current_message": "The printer on the second floor isn't showing up in my list of printers anymore. I was able to print yesterday.",
+        "current_message": "Need to reset my Windows password, it expired this morning.",
         "chat_history": [],
         "expected_output": {
-            "category": "general_troubleshooting",
-            "key_details": "User unable to see network printer in printer list, previously working",
-            "reasoning": "This is a common printer connectivity issue that typically can be resolved with basic steps like checking network connection or refreshing printer list",
-        },
+            "category": "password_reset",
+            "proceed": True,
+            "key_details": "Standard Windows password reset request due to expiration",
+            "reasoning": "Basic password reset request. Proceeding to verify user identity and guide through self-service reset if available."
+        }
     },
+
+    # Access Management - Initial Request
     {
-        "current_message": "I accidentally deleted some files from my OneDrive. Is there a way to get them back?",
-        "chat_history": ["When did you delete them?", "About an hour ago"],
+        "current_message": "Need access to the marketing team's SharePoint site. I just joined the team.",
+        "chat_history": [],
         "expected_output": {
-            "category": "general_troubleshooting",
-            "key_details": "User needs help recovering recently deleted files from OneDrive",
-            "reasoning": "This is a standard file recovery scenario that can be resolved using built-in OneDrive recovery features, requiring only basic guidance",
-        },
+            "category": "access_management",
+            "proceed": True,
+            "key_details": "New team member requesting SharePoint access for marketing team site",
+            "reasoning": "Access request needs verification but proceeding to gather manager details and specific access requirements."
+        }
     },
+
+    # Network Issues - Complex
+    {
+        "current_message": "Getting really slow internet speeds on the 3rd floor, but 2nd floor is fine.",
+        "chat_history": [],
+        "expected_output": {
+            "category": "network_issues",
+            "proceed": True,
+            "key_details": "Location-specific network performance issue, limited to 3rd floor",
+            "reasoning": "While network infrastructure issue, proceeding to gather affected user count, specific times, and speed test results for network team."
+        }
+    },
+
+    # Security Issues - Initial Report
+    {
+        "current_message": "I think I clicked on a suspicious link in an email. My antivirus is showing warnings.",
+        "chat_history": [],
+        "expected_output": {
+            "category": "security_issues",
+            "proceed": True,
+            "key_details": "Potential security incident: suspicious link clicked, antivirus warnings active",
+            "reasoning": "Security issue but proceeding to gather essential details: email source, warning messages, and any system changes noticed."
+        }
+    },
+
+    # Onboarding - System Setup
+    {
+        "current_message": "Starting next week, need my laptop and system access set up.",
+        "chat_history": [],
+        "expected_output": {
+            "category": "onboarding",
+            "proceed": True,
+            "key_details": "New employee requesting initial system setup and access",
+            "reasoning": "Standard onboarding request. Proceeding to verify employment details and gather specific access requirements."
+        }
+    },
+
+    # Offboarding - Account Closure
+    {
+        "current_message": "Need to terminate system access for John Smith, his last day was yesterday.",
+        "chat_history": [],
+        "expected_output": {
+            "category": "offboarding",
+            "proceed": True,
+            "key_details": "Access termination request for departed employee John Smith",
+            "reasoning": "Offboarding request requires verification but proceeding to confirm requester authority and gather account details."
+        }
+    }
 ]
 
 
 CATEGORISE_CONVERSATION_PROMPT_TEMPLATE = """
-You are an expert IT support ticket analyzer. Given the following CurrentMessage and ConversationHistory from a support ticket, please:
-1. Identify the category of the conversation from these options:
-   - general_inquiry
-   - general_troubleshooting (Troubleshooting very common problems that can be dealt by straightforward troubleshooting)
-   - technical_troubleshooting (Troubleshooting very specific problems that require a deeper understanding of the system or user intervention to troubleshoot)
-   - software_installation
-   - hardware_equipment_order
-   - password_reset
-   - offboarding
-   - onboarding
-   - access_management
-   - network_issues
-   - security_issues
-   - other (If none of the above categories apply)
+You are an expert IT support ticket analyzer and assistant. You work alongside specialized systems and human agents to provide comprehensive support. Your role is to:
+1. Analyze and categorize support requests
+2. Assist with information gathering and initial debugging for ALL issues
+3. Handle general inquiries and basic troubleshooting directly
+4. Ensure smooth transitions to specialist teams when needed
 
-2. Extract key details about the request. 
-3. Reason on why you assinged this category to this conversation. 
+Available categories:
+- general_inquiry (Basic information requests about policies, services, etc.)
+- general_troubleshooting (Common problems solvable with basic steps)
+- technical_troubleshooting (Complex issues needing deep technical knowledge)
+- software_installation
+- hardware_equipment_order
+- password_reset
+- offboarding
+- onboarding
+- access_management
+- network_issues
+- security_issues
+- other
+
+System Capabilities and Approach:
+- The automated response system can fully handle:
+  * general_inquiry: Basic information requests, policy questions, service details
+  * general_troubleshooting: Common issues with documented solutions
+
+- For ALL other categories, you should:
+  * Gather relevant diagnostic information
+  * Guide through safe preliminary troubleshooting steps
+  * Document attempted solutions and their outcomes
+  * Help narrow down the root cause
+  * Only transition to specialists after gathering useful context
+
+Progressive Assistance Guidelines:
+1. Initial Response (Always proceed=true):
+   * Acknowledge the issue
+   * Ask clarifying questions
+   * Request relevant details
+   * Suggest safe diagnostic steps
+
+2. Follow-up Assistance (proceed=true if):
+   * Still gathering important information
+   * User is following troubleshooting steps
+   * Current steps might resolve the issue
+   * Need to validate attempted solutions
+
+3. Specialist Transition (proceed=false when):
+   * Sufficient information gathered to confirm specialist need
+   * Basic troubleshooting steps exhausted
+   * Issue confirmed to require elevated access
+   * Clear security or compliance implications
+   * Complex technical intervention needed
+
+Format your response as a JSON object:
+{{
+    "category": "category_name",
+    "proceed": boolean,
+    "key_details": "Description of the issue, gathered information, and troubleshooting steps",
+    "reasoning": "Explanation of category and current decision to proceed or transition",
+}}
 
 Examples:
 {examples}
-
-Format your response as a JSON object with the following structure:
-{{
-    "category": "category_name",
-    "key_details": "Brief description of the key points",
-    "reasoning": "Brief explanation of how you arrived at the conclusion"
-}}
 
 CurrentMessage:
 {current_message}
@@ -218,7 +295,6 @@ CurrentMessage:
 ConversationHistory:
 {chat_history}
 """
-
 
 def get_formatted_few_shot_prompts(few_shot_prompts: List[Dict]):
     example_strings = []

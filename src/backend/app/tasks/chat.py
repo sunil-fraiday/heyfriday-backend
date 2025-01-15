@@ -86,8 +86,8 @@ def identify_intent_task(self, message_id: str):
             ),
         )
         logger.info(f"Category: {intent}")
-        category = intent.get("category")
-        if category in ALLOWED_CATEGORIES:
+        proceed = intent.get("proceed")
+        if proceed:
             # Pass session and message data to the next task
             return {
                 "session_id": str(chat_message.session.id),
