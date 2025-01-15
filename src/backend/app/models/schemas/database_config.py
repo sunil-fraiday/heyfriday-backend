@@ -29,7 +29,9 @@ class WeaviateConfig(BaseModel):
     """Configuration model for Weaviate instances"""
 
     url: str
+    grpc_port: int
     api_key: str
+    readonly_api_key: Optional[str] = None
     class_name: Optional[str] = None
     additional_headers: Dict = Field(default_factory=dict)
     timeout_config: Dict = Field(default_factory=dict)

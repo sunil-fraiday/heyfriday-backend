@@ -4,7 +4,7 @@ from app.utils.logger import get_logger
 from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.utils import CredentialManager
 from app.models.schemas.database_config import ClickHouseConfig
-from app.models.mongodb.enums import DatabaseType
+from app.models.mongodb.enums import DatabaseType, EngineType
 
 from .base import BaseDataStoreService
 
@@ -14,6 +14,8 @@ logger = get_logger(__name__)
 class ClickHouseService(BaseDataStoreService):
     """Service for managing ClickHouse databases"""
 
+    ENGINE_TYPE = EngineType.STRUCTURED
+
     def __init__(self, admin_connection: dict, credential_manager: "CredentialManager"):
         super().__init__(admin_connection, credential_manager)
         import clickhouse_driver
@@ -22,7 +24,7 @@ class ClickHouseService(BaseDataStoreService):
 
     def create_database(self, client: Client) -> "ClientDataStore":
         """Create a new ClickHouse database for a client"""
-        self._check_data_store_limit(client)
+        self._check_data_store_limit(client, self.ENGINE_TYPE)
 
         try:
             db_name = f"client_{client.client_id.lower()}"
@@ -30,8 +32,8 @@ class ClickHouseService(BaseDataStoreService):
 
             with self.driver.Client(**self.admin_connection) as ch:
                 ch.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-                ch.execute(f"CREATE USER IF NOT EXISTS {username} IDENTIFIED BY '{password}'")                
-                ch.execute(f"GRANT SELECT ON {db_name}.* TO {username}")                
+                ch.execute(f"CREATE USER IF NOT EXISTS {username} IDENTIFIED BY '{password}'")
+                ch.execute(f"GRANT SELECT ON {db_name}.* TO {username}")
 
             config = ClickHouseConfig(
                 database=db_name,
@@ -45,6 +47,7 @@ class ClickHouseService(BaseDataStoreService):
             data_store = ClientDataStore(
                 client=client,
                 database_type=DatabaseType.CLICKHOUSE,
+                engine_type=self.ENGINE_TYPE.value,
                 config=self.credential_manager.encrypt_config(config.model_dump()),
                 is_active=True,
             )

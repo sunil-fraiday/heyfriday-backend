@@ -4,7 +4,7 @@ from app.utils.logger import get_logger
 from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.utils import CredentialManager
 from app.models.schemas.database_config import PostgresConfig
-from app.models.mongodb.enums import DatabaseType
+from app.models.mongodb.enums import DatabaseType, EngineType
 
 from .base import BaseDataStoreService
 
@@ -14,6 +14,8 @@ logger = get_logger(__name__)
 class PostgresService(BaseDataStoreService):
     """Service for managing PostgreSQL databases"""
 
+    ENGINE_TYPE = EngineType.STRUCTURED
+
     def __init__(self, admin_connection: dict, credential_manager: "CredentialManager"):
         super().__init__(admin_connection, credential_manager)
         import psycopg2
@@ -22,7 +24,7 @@ class PostgresService(BaseDataStoreService):
 
     def create_database(self, client: Client) -> "ClientDataStore":
         """Create a new PostgreSQL database for a client"""
-        self._check_data_store_limit(client)
+        self._check_data_store_limit(client, self.ENGINE_TYPE)
 
         try:
             db_name = f"client_{client.client_id.lower()}"
@@ -80,6 +82,7 @@ class PostgresService(BaseDataStoreService):
             data_store = ClientDataStore(
                 client=client,
                 database_type=DatabaseType.POSTGRES,
+                engine_type=self.ENGINE_TYPE.value,
                 config=self.credential_manager.encrypt_config(config.dict()),
                 is_active=True,
             )

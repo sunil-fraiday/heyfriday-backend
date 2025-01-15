@@ -11,7 +11,7 @@ def datetime_utc_now():
 class CredentialManager:
     """Manages encryption/decryption of credentials with key rotation support"""
 
-    SENSITIVE_FIELDS = ["password", "user", "host", "database"]
+    SENSITIVE_FIELDS = ["password", "user", "host", "database", "url", "api_key"]
 
     def __init__(self, current_key: bytes, old_keys: list[bytes] = None):
         # Initialize with current and old keys for rotation
