@@ -1,10 +1,12 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 
 from app.services.client.data_store import ClientDataStoreService
 from app.models.mongodb.utils import CredentialManager
 from app.models.mongodb.client_data_store import ClientDataStore
+from app.models.mongodb.enums import DatabaseType
+from app.models.schemas.database_config import PostgresConfig, ClickHouseConfig, WeaviateConfig
 from app.schemas.client.structured_data_store import ClientStructuredDataStoreResponse
 from app.core.config import settings
 from app.utils.logger import get_logger
@@ -16,11 +18,14 @@ router = APIRouter(prefix="/clients/{client_id}/data-stores", tags=["database"])
 
 class DatabaseConfigResponse(BaseModel):
     database_type: str
-    host: str
-    port: int
-    database: str
-    user: str
-    password: str
+    config: Union[PostgresConfig, ClickHouseConfig, WeaviateConfig]
+
+
+DATABASE_TYPE_TO_CONFIG_MAP = {
+    DatabaseType.CLICKHOUSE: ClickHouseConfig,
+    DatabaseType.POSTGRES: PostgresConfig,
+    DatabaseType.WEAVIATE: WeaviateConfig,
+}
 
 
 async def verify_api_key(authorization: Optional[str] = Header(None)):
@@ -42,18 +47,12 @@ async def get_database_config(client_id: str, data_store_id: str, api_key: Optio
     try:
         credential_manager = CredentialManager(current_key=settings.ENCRYPTION_KEY)
         store_service = ClientDataStoreService(credential_manager=credential_manager)
-        data_store: ClientDataStore = store_service.get_data_store(
-            client_id=client_id, data_store_id=data_store_id
-        )
-        config = data_store.get_config(credential_manager)
+        data_store: ClientDataStore = store_service.get_data_store(client_id=client_id, data_store_id=data_store_id)
+        data_store_config = credential_manager.decrypt_config(data_store.config)
 
         return DatabaseConfigResponse(
             database_type=data_store.database_type,
-            host=config.host,
-            port=config.port,
-            database=config.database,
-            user=config.user,
-            password=config.password,
+            config=DATABASE_TYPE_TO_CONFIG_MAP.get(data_store.database_type)(**data_store_config),
         )
 
     except Exception as e:

@@ -3,7 +3,8 @@ import secrets
 import string
 from typing import Tuple
 from app.models.mongodb.client import Client
-from app.models.mongodb.client_data_store import ClientDataStore, CredentialManager
+from app.models.mongodb.client_data_store import ClientDataStore
+from app.models.mongodb.utils import CredentialManager
 from app.models.mongodb.enums import EngineType
 
 
