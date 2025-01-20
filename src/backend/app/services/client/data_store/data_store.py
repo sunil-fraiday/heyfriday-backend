@@ -9,9 +9,8 @@ from app.models.mongodb.enums import DatabaseType
 from app.services.client.db_server import DBServerService
 from app.utils.logger import get_logger
 
-from .clickhouse import ClickHouseService
-from .postgres import PostgresService
 from .base import BaseDataStoreService
+from .constants import DATABASE_TYPE_TO_SERVICE_MAP
 
 
 logger = get_logger(__name__)
@@ -36,11 +35,8 @@ class ClientDataStoreService:
             )
 
             # Create and return appropriate service
-            if database_type == DatabaseType.CLICKHOUSE:
-                return ClickHouseService(admin_connection, self.credential_manager)
-            elif database_type == DatabaseType.POSTGRES:
-                return PostgresService(admin_connection, self.credential_manager)
-
+            return DATABASE_TYPE_TO_SERVICE_MAP[database_type](admin_connection, self.credential_manager)
+        except KeyError as exc:
             raise ValueError(f"Unsupported database type: {database_type}")
 
         except Exception as e:
@@ -88,9 +84,7 @@ class ClientDataStoreService:
         """Deactivate a client's database"""
         try:
             client = Client.objects.get(client_id=client_id)
-            data_store = ClientDataStore.objects.get(
-                client=client, database_type=database_type, is_active=True
-            )
+            data_store = ClientDataStore.objects.get(client=client, database_type=database_type, is_active=True)
             data_store.is_active = False
             data_store.save()
 

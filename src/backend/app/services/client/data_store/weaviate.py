@@ -30,11 +30,11 @@ class WeaviateService(BaseDataStoreService):
     def get_client(self, admin_connection: WeaviateConfig) -> weaviate.WeaviateClient:
         client = weaviate.WeaviateClient(
             connection_params=ConnectionParams.from_url(
-                admin_connection.url,
-                grpc_port=admin_connection.grpc_port,
+                admin_connection["url"],
+                grpc_port=admin_connection["grpc_port"],
             ),
-            auth_client_secret=Auth.api_key(admin_connection.api_key),
-            additional_config=AdditionalConfig(timeout=Timeout(**admin_connection.timeout_config)),
+            auth_client_secret=Auth.api_key(admin_connection["api_key"]),
+            additional_config=AdditionalConfig(timeout=Timeout(**admin_connection["timeout_config"])),
             skip_init_checks=False,
         )
         client.connect()
@@ -58,12 +58,12 @@ class WeaviateService(BaseDataStoreService):
 
             # Create client-specific config
             config = WeaviateConfig(
-                url=self.admin_connection.url,
-                grpc_port=self.admin_connection.grpc_port,
-                api_key=self.admin_connection.readonly_api_key,
+                url=self.admin_connection["url"],
+                grpc_port=self.admin_connection["grpc_port"],
+                api_key=self.admin_connection["api_key"],
                 class_name=class_name,
-                additional_headers=self.admin_connection.additional_headers,
-                timeout_config=self.admin_connection.timeout_config,
+                additional_headers=self.admin_connection["additional_headers"],
+                timeout_config=self.admin_connection["timeout_config"],
             )
 
             # Create data store record

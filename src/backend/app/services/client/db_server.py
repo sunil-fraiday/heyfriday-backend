@@ -4,6 +4,7 @@ from app.utils.logger import get_logger
 from app.models.mongodb.client import Client
 from app.models.mongodb.client_db_server import ClientDBServer
 from app.models.mongodb.enums import DatabaseType
+from app.constants import DATABASE_TYPE_TO_ENGINE_MAP, DATABASE_TYPE_TO_CONFIG_MAP
 from app.models.mongodb.utils import CredentialManager
 from app.models.schemas.database_config import DatabaseConfig
 
@@ -30,7 +31,7 @@ class DBServerService:
                 # Client has their own server(s), use the first active one
                 server = client_servers.first()
                 logger.info(f"Using client-specific {database_type} server for {client_id}")
-                return server.get_config(self.credential_manager).model_dump()
+                return self.get_server_config(server)
 
             # No client-specific server, look for global default
             default_server = ClientDBServer.objects(
@@ -44,13 +45,18 @@ class DBServerService:
                 )
 
             logger.info(f"Using global default {database_type} server for {client_id}")
-            return default_server.get_config(self.credential_manager).model_dump()
+            return self.get_server_config(default_server)
 
         except Client.DoesNotExist:
             raise ValueError(f"Client not found: {client_id}")
         except Exception as e:
             logger.error(f"Error getting DB server for client {client_id}", exc_info=True)
             raise
+
+    def get_server_config(self, server: ClientDBServer):
+        return self.credential_manager.decrypt_config(
+            DATABASE_TYPE_TO_CONFIG_MAP.get(server.server_type)(**server.config).model_dump()
+        )
 
     def create_server(
         self,
@@ -76,6 +82,7 @@ class DBServerService:
 
             server = ClientDBServer(
                 server_type=database_type,
+                engine_type=DATABASE_TYPE_TO_ENGINE_MAP.get(database_type),
                 config=encrypted_config,
                 client=client,
                 is_default=is_default and client is None,

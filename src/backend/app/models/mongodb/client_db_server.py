@@ -27,14 +27,3 @@ class ClientDBServer(BaseDocument):
             ("server_type", "is_default", "is_active"),
         ],
     }
-
-    def get_config(self, credential_manager: "CredentialManager") -> DatabaseConfig:
-        """Get decrypted database configuration"""
-        decrypted_config = credential_manager.decrypt_config(self.config)
-
-        if self.server_type == DatabaseType.CLICKHOUSE:
-            return ClickHouseConfig(**decrypted_config)
-        elif self.server_type == DatabaseType.POSTGRES:
-            return PostgresConfig(**decrypted_config)
-
-        raise ValueError(f"Unsupported database type: {self.server_type}")
