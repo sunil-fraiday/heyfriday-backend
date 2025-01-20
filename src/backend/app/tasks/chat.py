@@ -199,7 +199,7 @@ def generate_ai_response_task(self, session_data: dict):
 
         processor = AIService()
         processed_message = processor.get_response(message_id=message_id)
-        
+
         chat_message_config = message.get_message_config()
         ai_enabled = chat_message_config.ai_enabled
         suggestion_mode = chat_message_config.suggestion_mode
@@ -320,10 +320,8 @@ def trigger_chat_workflow(message_id: str):
     Starts the message processing chain.
     """
     process_chain = chain(
-        identify_intent_task.s(message_id),  # First task
-        authorization.s(),  # Second task
-        generate_ai_response_task.s(),  # Third task
-        send_to_webhook_task.s(),  # Fourth task
+        generate_ai_response_task.s(session_data={"message_id": message_id}),
+        send_to_webhook_task.s(),
     )
     process_chain.apply_async()
 
@@ -333,7 +331,7 @@ def trigger_suggestion_workflow(message_id: str):
     Starts the message processing chain.
     """
     process_chain = chain(
-        generate_ai_response_task.s(session_data={"message_id": message_id}),  # Third task
-        send_to_webhook_task.s(),  # Fourth task
+        generate_ai_response_task.s(session_data={"message_id": message_id}),
+        send_to_webhook_task.s(),
     )
     process_chain.apply_async()
