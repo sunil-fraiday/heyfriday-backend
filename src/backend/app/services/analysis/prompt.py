@@ -133,7 +133,7 @@ category_few_shot_examples = [
         "chat_history": [],
         "expected_output": {
             "category": "software_installation",
-            "proceed": True,
+            "proceed": False,
             "key_details": "User requesting Python installation with data science packages for project work",
             "reasoning": "While software installation category, proceeding to gather specific package requirements and verify if they're pre-approved for installation."
         }
@@ -157,7 +157,7 @@ category_few_shot_examples = [
         "chat_history": [],
         "expected_output": {
             "category": "password_reset",
-            "proceed": True,
+            "proceed": False,
             "key_details": "Standard Windows password reset request due to expiration",
             "reasoning": "Basic password reset request. Proceeding to verify user identity and guide through self-service reset if available."
         }
@@ -217,9 +217,9 @@ category_few_shot_examples = [
         "chat_history": [],
         "expected_output": {
             "category": "offboarding",
-            "proceed": True,
+            "proceed": False,
             "key_details": "Access termination request for departed employee John Smith",
-            "reasoning": "Offboarding request requires verification but proceeding to confirm requester authority and gather account details."
+            "reasoning": "Already have enough information regarding John Smith's termination. Proceeding to initiate account closure process."
         }
     }
 ]
@@ -252,7 +252,7 @@ System Capabilities and Approach:
   * general_troubleshooting: Common issues with documented solutions
 
 - For ALL other categories, you should:
-  * Gather relevant diagnostic information
+  * Gather relevant diagnostic information but dont exceed many followup questions and handover after max 2 followup questions
   * Guide through safe preliminary troubleshooting steps
   * Document attempted solutions and their outcomes
   * Help narrow down the root cause
@@ -266,17 +266,15 @@ Progressive Assistance Guidelines:
    * Suggest safe diagnostic steps
 
 2. Follow-up Assistance (proceed=true if):
-   * Still gathering important information
+   * Still gathering important information but after 2 followup questions handover to specialist
    * User is following troubleshooting steps
    * Current steps might resolve the issue
-   * Need to validate attempted solutions
 
 3. Specialist Transition (proceed=false when):
    * Sufficient information gathered to confirm specialist need
-   * Basic troubleshooting steps exhausted
    * Issue confirmed to require elevated access
-   * Clear security or compliance implications
-   * Complex technical intervention needed
+   * Good clear security or compliance implications
+   * Technical intervention needed
 
 Format your response as a JSON object:
 {{
@@ -285,7 +283,7 @@ Format your response as a JSON object:
     "key_details": "Description of the issue, gathered information, and troubleshooting steps",
     "reasoning": "Explanation of category and current decision to proceed or transition",
 }}
-
+1
 Examples:
 {examples}
 
