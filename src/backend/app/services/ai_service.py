@@ -37,10 +37,9 @@ class AIService:
         try:
             chat_message = ChatMessageService.get_message(message_id=message_id)
             chat_message_history = ChatMessageService.list_messages(
-                last_n=6,
+                last_n=100,
                 exclude_id=[message_id],
                 session_id=chat_message.session_id,
-                start_date=chat_message.created_at - timedelta(minutes=10), # Get messages only from past 10 minutes
             )[::-1]
             return AIServiceRequest(
                 current_message=chat_message.text,
