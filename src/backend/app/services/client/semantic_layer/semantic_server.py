@@ -1,4 +1,7 @@
-from typing import Optional
+from typing import Optional, List
+from fastapi import status
+from fastapi.exceptions import HTTPException
+
 from app.models.mongodb.client import Client
 from app.models.mongodb.semantic_layer.client_semantic_server import ClientSemanticServer
 from app.models.mongodb.semantic_layer.config_models import SemanticLayerConfig
@@ -39,7 +42,7 @@ class ClientSemanticServerService:
             return default_server
 
         except Client.DoesNotExist:
-            raise ValueError(f"Client not found: {client_id}")
+            raise HTTPException(status=status.HTTP_404_NOT_FOUND, detail=f"Client not found: {client_id}")
         except Exception as e:
             logger.error(f"Error getting semantic server for client {client_id}", exc_info=True)
             raise
@@ -85,3 +88,35 @@ class ClientSemanticServerService:
         except Exception as e:
             logger.error(f"Error creating semantic server", exc_info=True)
             raise ValueError(f"Failed to create semantic server: {str(e)}")
+
+    def list_semantic_servers(
+        self, client_id: Optional[str] = None, skip: int = 0, limit: int = 50, include_inactive: bool = False
+    ) -> List[ClientSemanticServer]:
+        """List semantic servers with optional filtering"""
+        try:
+            query = {}
+            if client_id:
+                query["client"] = client_id
+            if not include_inactive:
+                query["is_active"] = True
+
+            servers = ClientSemanticServer.objects(**query).order_by("-created_at").skip(skip).limit(limit)
+
+            return list(servers)
+        except Exception as e:
+            logger.error("Error listing semantic servers", exc_info=True)
+            raise ValueError(str(e))
+
+    def count_semantic_servers(self, client_id: Optional[str] = None, include_inactive: bool = False) -> int:
+        """Count total semantic servers matching filter"""
+        try:
+            query = {}
+            if client_id:
+                query["client"] = client_id
+            if not include_inactive:
+                query["is_active"] = True
+
+            return ClientSemanticServer.objects(**query).count()
+        except Exception as e:
+            logger.error("Error counting semantic servers", exc_info=True)
+            raise ValueError(str(e))
