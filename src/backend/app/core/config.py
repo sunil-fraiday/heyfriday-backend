@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     SWYT_WEBHOOK_URL: Optional[str] = None
     API_KEY: str
     ENCRYPTION_KEY: str
+    ADMIN_API_KEY: str
 
     AWS_BEDROCK_ACCESS_KEY_ID: str
     AWS_BEDROCK_SECRET_ACCESS_KEY: str
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
 
     @property
     def CELERY_BROKER_URL(self) -> str:
-        if self.REDIS_PASSWORD: 
+        if self.REDIS_PASSWORD:
             return f"rediss://default:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
