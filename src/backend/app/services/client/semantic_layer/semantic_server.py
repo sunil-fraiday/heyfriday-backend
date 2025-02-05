@@ -3,8 +3,9 @@ from fastapi import status
 from fastapi.exceptions import HTTPException
 
 from app.models.mongodb.client import Client
+from app.schemas.client.semantic_layer.semantic_server import SemanticConfigCreate
 from app.models.mongodb.semantic_layer.client_semantic_server import ClientSemanticServer
-from app.models.mongodb.semantic_layer.config_models import SemanticLayerConfig
+from app.models.mongodb.semantic_layer.config_models import SemanticEngineType
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -50,8 +51,8 @@ class ClientSemanticServerService:
     def create_semantic_server(
         self,
         server_name: str,
-        server_url: str,
-        semantic_config: SemanticLayerConfig,
+        engine_type: SemanticEngineType,
+        semantic_config: SemanticConfigCreate,
         client_id: Optional[str] = None,
         is_default: bool = False,
     ) -> ClientSemanticServer:
@@ -69,8 +70,8 @@ class ClientSemanticServerService:
 
             server = ClientSemanticServer(
                 server_name=server_name,
-                server_url=server_url,
-                semantic_config=semantic_config,
+                engine_type=engine_type,
+                semantic_config=semantic_config.model_dump(),
                 client=client,
                 is_default=is_default and client is None,
                 is_active=True,
@@ -120,3 +121,14 @@ class ClientSemanticServerService:
         except Exception as e:
             logger.error("Error counting semantic servers", exc_info=True)
             raise ValueError(str(e))
+
+    def get_semantic_server(self, server_id: str) -> ClientSemanticServer:
+        """Get a specific semantic server configuration"""
+        try:
+            server = ClientSemanticServer.objects.get(id=server_id)
+            return server
+        except ClientSemanticServer.DoesNotExist:
+            raise HTTPException(status=status.HTTP_404_NOT_FOUND, detail=f"Semantic server not found: {server_id}")
+        except Exception as e:
+            logger.error(f"Error getting semantic server {server_id}", exc_info=True)
+            raise
