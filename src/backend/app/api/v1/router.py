@@ -9,6 +9,7 @@ from .endpoints.chat_message_feedback import router as chat_message_feedback_rou
 from .endpoints.client_data_store import router as client_data_store_router
 from .endpoints.semantic_layer.repository import router as repository_router
 from .endpoints.semantic_layer.semantic_server import router as semantic_server_router
+from .endpoints.semantic_layer.semantic_layer import router as semmantic_layer_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -21,3 +22,4 @@ api_v1_router.include_router(chat_message_feedback_router)
 api_v1_router.include_router(client_data_store_router)
 api_v1_router.include_router(repository_router)
 api_v1_router.include_router(semantic_server_router)
+api_v1_router.include_router(semmantic_layer_router)
