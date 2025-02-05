@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
     AI_SERVICE_URL: str = TEXT_TO_SQL_SERVICE_URL
     SWYT_WEBHOOK_URL: Optional[str] = None
-    API_KEY: str
     ENCRYPTION_KEY: str
     ADMIN_API_KEY: str
 

@@ -34,7 +34,7 @@ async def verify_api_key(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="Missing API key")
 
     x_api_key = authorization.split(" ")[1]
-    if x_api_key != settings.API_KEY:
+    if x_api_key != settings.ADMIN_API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return x_api_key
 

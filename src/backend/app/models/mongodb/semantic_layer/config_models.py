@@ -9,7 +9,6 @@ class SemanticEngineType(str, Enum):
 class SemanticLayerConfig(fields.EmbeddedDocument):
     """Generic configuration for semantic layer engines"""
 
-    engine_type = fields.StringField(required=True, choices=[t.value for t in SemanticEngineType])
     api_url = fields.StringField(required=True)
     api_token = fields.StringField(required=True)
     dev_mode = fields.BooleanField(default=False)
