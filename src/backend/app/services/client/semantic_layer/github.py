@@ -1,3 +1,4 @@
+import base64
 from typing import Optional, List
 from github import Github, GithubException
 from pathlib import Path
@@ -25,6 +26,8 @@ class GitHubService:
 
             # Test file operations
             test_path = f"{repository.repository_config.base_path}/.test"
+            if test_path.startswith("/"):
+                test_path = test_path[1:]
             test_content = "test"
 
             # Try to create a test file
@@ -57,15 +60,16 @@ class GitHubService:
             repo = client.get_repo(self._get_repo_name(repository.repository_config.repo_url))
 
             full_path = self._join_paths(repository.repository_config.base_path, folder_path, ".gitkeep")
+            content = base64.b64encode(b"").decode("utf-8")
 
             repo.create_file(
-                full_path, f"Initialize {folder_path} folder", "", branch=repository.repository_config.branch
+                full_path, f"Initialize {folder_path} folder", content, branch=repository.repository_config.branch
             )
 
             return True
 
         except GithubException as e:
-            logger.error(f"Failed to create folder {folder_path}: {str(e)}", exc_info = True)
+            logger.error(f"Failed to create folder {folder_path}: {str(e)}", exc_info=True)
             raise RuntimeError(f"Failed to create folder: {str(e)}")
 
     def write_file(self, repository: ClientRepository, file_path: str, content: str, commit_message: str) -> bool:
@@ -105,7 +109,7 @@ class GitHubService:
             return file_content.decoded_content.decode("utf-8")
 
         except GithubException as e:
-            logger.error(f"Failed to read file {file_path}: {str(e)}", exc_info = True)
+            logger.error(f"Failed to read file {file_path}: {str(e)}", exc_info=True)
             return None
 
     def list_files(self, repository: ClientRepository, folder_path: str) -> List[str]:
@@ -120,7 +124,7 @@ class GitHubService:
             return [content.path for content in contents if content.type == "file"]
 
         except GithubException as e:
-            logger.error(f"Failed to list files in {folder_path}: {str(e)}", exc_info = True)
+            logger.error(f"Failed to list files in {folder_path}: {str(e)}", exc_info=True)
             return []
 
     @staticmethod

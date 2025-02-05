@@ -7,7 +7,7 @@ from app.models.mongodb.utils import CredentialManager
 from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.enums import DatabaseType
 from app.models.schemas.database_config import PostgresConfig, ClickHouseConfig, WeaviateConfig
-from app.schemas.client.structured_data_store import ClientStructuredDataStoreResponse
+from app.schemas.client.structured_data_store import ClientDataStoreResponse
 from app.core.config import settings
 from app.utils.logger import get_logger
 
@@ -60,7 +60,7 @@ async def get_database_config(client_id: str, data_store_id: str, api_key: Optio
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("", response_model=List[ClientStructuredDataStoreResponse])
+@router.get("", response_model=List[ClientDataStoreResponse])
 async def get_database_config(client_id: str):
     """"""
     try:
@@ -68,7 +68,7 @@ async def get_database_config(client_id: str):
         store_service = ClientDataStoreService(credential_manager=credential_manager)
         data_stores: List[ClientDataStore] = store_service.list_data_stores(client_id=client_id)
         return [
-            ClientStructuredDataStoreResponse(
+            ClientDataStoreResponse(
                 id=str(data_store.id), database_type=data_store.database_type, is_active=data_store.is_active
             )
             for data_store in data_stores

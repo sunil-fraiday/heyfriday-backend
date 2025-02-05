@@ -1,6 +1,7 @@
 from typing import Optional
 from fastapi.exceptions import HTTPException
 from fastapi import status
+from slugify import slugify
 
 from app.utils.logger import get_logger
 from app.models.mongodb.client import Client
@@ -37,14 +38,14 @@ class ClientSemanticLayerService:
                 raise ValueError("Invalid repository access. Please check credentials and permissions.")
 
             # Create client folder in repository
-            folder_name = str(client.client_id)  # Use client ID as folder name
+            folder_name = slugify(f"{str(client.name)}")  # Use client ID as folder name
             github_service.create_folder(repository, folder_name)
 
             # Create semantic layer
             semantic_layer = ClientSemanticLayer(
                 client=client,
-                repository=repository,
-                semantic_server=semantic_server,
+                client_repository=repository,
+                client_semantic_server=semantic_server,
                 repository_folder=folder_name,
                 is_active=True,
             )
@@ -56,6 +57,27 @@ class ClientSemanticLayerService:
         except Exception as e:
             logger.error(f"Error creating semantic layer for client {client_id}", exc_info=True)
             raise ValueError(f"Failed to create semantic layer: {str(e)}")
+
+    def list_semantic_layers(self, client_id: str, skip: int = 0, limit: int = 50):
+        """List semantic layers for a client"""
+        try:
+            client: Client = Client.objects.get(client_id=client_id)
+            semantic_layers = (
+                ClientSemanticLayer.objects(client=client).order_by("-created_at").skip(skip).limit(limit)
+            )
+            return semantic_layers
+        except Client.DoesNotExist:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+        except Exception as e:
+            raise ValueError(f"Failed to list semantic layers: {str(e)}")
+
+    def get_semantic_layer(self, layer_id: str) -> Optional[ClientSemanticLayer]:
+        """Get a semantic layer by ID"""
+        try:
+            semantic_layer = ClientSemanticLayer.objects.get(id=layer_id)
+            return semantic_layer
+        except ClientSemanticLayer.DoesNotExist:
+            return None
 
     def add_data_store(self, semantic_layer_id: str, data_store_id: str) -> ClientSemanticLayer:
         """Add a data store to semantic layer"""

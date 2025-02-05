@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
 from datetime import datetime
 
@@ -20,6 +20,17 @@ class RepositoryCreate(BaseModel):
 class RepositoryResponse(BaseModel):
     id: str
     repository_config: RepositoryConfigCreate
+    client_id: Optional[str] = None
+    is_active: bool
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class RepositoryInline(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    id: str
     client_id: Optional[str] = None
     is_active: bool
     is_default: bool

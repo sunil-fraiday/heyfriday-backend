@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, Dict
 
 
@@ -18,3 +18,12 @@ class ClientResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class ClientInline(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="ignore")
+
+    id: str
+    name: str
+    client_id: str
+    is_active: bool
