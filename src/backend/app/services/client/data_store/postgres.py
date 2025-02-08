@@ -1,3 +1,5 @@
+from typing import Dict, List, Any
+
 from app.models.mongodb.client import Client
 from app.utils.logger import get_logger
 
@@ -94,6 +96,18 @@ class PostgresService(BaseDataStoreService):
         except Exception as e:
             logger.error(f"Error creating PostgreSQL database for client {client.client_id}", exc_info=True)
             raise
+
+    def raw_execute(self, config: Dict[str, Any], query: str, params: Dict = None) -> List[tuple]:
+        """Execute raw query on PostgreSQL"""
+        try:
+            with self.driver.connect(**config) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query, params or {})
+                    return cur.fetchall() if cur.description else []
+
+        except Exception as e:
+            logger.error("Error executing raw PostgreSQL query", exc_info=True)
+            raise ValueError(f"Database query error: {str(e)}")
 
     def test_connection(self, config: dict) -> bool:
         try:

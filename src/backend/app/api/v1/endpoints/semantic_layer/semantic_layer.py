@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Body
 from typing import Optional, List
 from app.schemas.client.semantic_layer.semantic_layer import (
     SemanticLayerCreate,
     SemanticLayerResponse,
+    AddorRemoveDataStoreRequest,
 )
 from app.services.client.semantic_layer.semantic_layer import ClientSemanticLayerService
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/clients/{client_id}/semantic-layers", tags=["semantic-layer"])
 
@@ -48,22 +52,29 @@ async def get_semantic_layer(layer_id: str):
 
 
 @router.post("/{layer_id}/data-stores")
-async def add_data_store(layer_id: str, data_store_id: str):
-    """Add a data store to semantic layer"""
+async def add_data_store(layer_id: str, data: AddorRemoveDataStoreRequest):
+    """
+    Add a data store to semantic layer and trigger initial sync job
+    """
     try:
+        data_store_id = data.data_store_id
         semantic_layer_service = ClientSemanticLayerService()
         layer = semantic_layer_service.add_data_store(semantic_layer_id=layer_id, data_store_id=data_store_id)
-        return {"message": "Data store added successfully"}
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+        return {"message": "Data store added successfully and sync job triggered"}
+
     except Exception as e:
+        logger.error("Error adding data store and triggering sync", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{layer_id}/data-stores")
-async def remove_data_store(layer_id: str, data_store_id: str):
+async def remove_data_store(layer_id: str, data: AddorRemoveDataStoreRequest):
     """Remove a data store from semantic layer"""
     try:
+        data_store_id = data.data_store_id
+        if not data_store_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="data_store_id is required")
         semantic_layer_service = ClientSemanticLayerService()
         layer = semantic_layer_service.remove_data_store(semantic_layer_id=layer_id, data_store_id=data_store_id)
         return {"message": "Data store removed successfully"}

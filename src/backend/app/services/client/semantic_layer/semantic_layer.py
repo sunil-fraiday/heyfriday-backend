@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from slugify import slugify
@@ -6,6 +6,11 @@ from slugify import slugify
 from app.utils.logger import get_logger
 from app.models.mongodb.client import Client
 from app.models.mongodb.client_data_store import ClientDataStore
+from app.models.mongodb.semantic_layer.client_semantic_layer_data_store import ClientSemanticLayerDataStore
+from app.models.mongodb.semantic_layer.client_semantic_layer_data_store import (
+    ClientSemanticLayerDataStore,
+    RelationshipStatus,
+)
 from app.models.mongodb.semantic_layer.client_semantic_layer import ClientSemanticLayer
 from app.services.client.semantic_layer.repository import ClientRepositoryService
 from app.services.client.semantic_layer.semantic_server import ClientSemanticServerService
@@ -79,54 +84,113 @@ class ClientSemanticLayerService:
         except ClientSemanticLayer.DoesNotExist:
             return None
 
-    def add_data_store(self, semantic_layer_id: str, data_store_id: str) -> ClientSemanticLayer:
+    def add_data_store(
+        self, semantic_layer_id: str, data_store_id: str, config: Optional[Dict] = None
+    ) -> ClientSemanticLayerDataStore:
         """Add a data store to semantic layer"""
         try:
             semantic_layer = ClientSemanticLayer.objects.get(id=semantic_layer_id)
-            data_store = ClientDataStore.objects.get(id=data_store_id)
 
-            # Validate data store belongs to same client
-            if data_store.client.id != semantic_layer.client.id:
-                raise ValueError("Data store does not belong to the semantic layer's client")
+            # Check if relationship already exists
+            existing = ClientSemanticLayerDataStore.objects(
+                client_semantic_layer=semantic_layer, client_data_store=data_store_id
+            ).first()
 
-            # Add to data stores if not already present
-            if data_store not in semantic_layer.data_stores:
-                semantic_layer.data_stores.append(data_store)
-                semantic_layer.save()
+            if existing:
+                if existing.status == RelationshipStatus.INACTIVE:
+                    existing.status = RelationshipStatus.ACTIVE
+                    existing.save()
+                    return existing
+                raise ValueError("Data store already added to this semantic layer")
 
-                logger.info(f"Added data store {data_store_id} to semantic layer {semantic_layer_id}")
+            relationship = ClientSemanticLayerDataStore(
+                client_semantic_layer=semantic_layer,
+                client_data_store=data_store_id,
+                config=config or {},
+                status=RelationshipStatus.PENDING,
+            )
+            relationship.save()
 
-            return semantic_layer
+            logger.info(f"Added data store {data_store_id} to semantic layer {semantic_layer_id}")
+            return relationship
+
+        except ClientSemanticLayer.DoesNotExist:
+            logger.error(f"Semantic layer not found: {semantic_layer_id}", exc_info=True)
+            raise ValueError(f"Semantic layer not found: {semantic_layer_id}")
+        except Exception as e:
+            logger.error(f"Error adding data store to semantic layer", exc_info=True)
+            raise ValueError(str(e))
+
+    def remove_data_store(self, semantic_layer_id: str, data_store_id: str) -> None:
+        """Remove a data store from semantic layer"""
+        try:
+            relationship = ClientSemanticLayerDataStore.objects.get(
+                client_semantic_layer=semantic_layer_id,
+                client_data_store=data_store_id,
+                status=RelationshipStatus.ACTIVE,
+            )
+
+            relationship.status = RelationshipStatus.INACTIVE
+            relationship.save()
+
+            logger.info(f"Removed data store {data_store_id} from semantic layer {semantic_layer_id}")
+
+        except ClientSemanticLayerDataStore.DoesNotExist:
+            logger.error(
+                f"Relationship not found for semantic layer {semantic_layer_id} and data store {data_store_id}",
+                exc_info=True,
+            )
+            raise ValueError("Data store not found in this semantic layer")
+        except Exception as e:
+            logger.error(f"Error removing data store from semantic layer", exc_info=True)
+            raise ValueError(str(e))
+
+    def list_data_stores(self, semantic_layer_id: str, skip: int = 0, limit: int = 50) -> List[ClientDataStore]:
+        """
+        List data stores for a semantic layer with pagination
+        Returns tuple of (data_stores, total_count)
+        """
+        try:
+            semantic_layer = ClientSemanticLayer.objects.get(id=semantic_layer_id)
+
+            data_stores = (
+                ClientDataStore.objects(
+                    id__in=[
+                        rel.client_data_store.id
+                        for rel in ClientSemanticLayerDataStore.objects(client_semantic_layer=semantic_layer)
+                    ]
+                )
+                .order_by("-created_at")
+                .skip(skip)
+                .limit(limit)
+            )
+
+            return data_stores
 
         except ClientSemanticLayer.DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Semantic layer not found: {semantic_layer_id}"
             )
-        except ClientDataStore.DoesNotExist:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Data store not found: {data_store_id}")
         except Exception as e:
-            logger.error(f"Error adding data store to semantic layer", exc_info=True)
-            raise RuntimeError(str(e))
+            logger.error("Error listing data stores", exc_info=True)
+            raise ValueError(str(e))
 
-    def remove_data_store(self, semantic_layer_id: str, data_store_id: str) -> ClientSemanticLayer:
-        """Remove a data store from semantic layer"""
+    def get_data_store(self, semantic_layer_id: str, data_store_id: str) -> ClientDataStore:
+        """Get a data store for a semantic layer"""
         try:
-            semantic_layer = ClientSemanticLayer.objects.get(id=semantic_layer_id)
-            data_store = ClientDataStore.objects.get(id=data_store_id)
+            semantic_layer_data_store = ClientSemanticLayerDataStore.objects.get(
+                client_semantic_layer=semantic_layer_id, client_data_store=data_store_id
+            )
 
-            if data_store in semantic_layer.data_stores:
-                semantic_layer.data_stores.remove(data_store)
-                semantic_layer.save()
-
-                logger.info(f"Removed data store {data_store_id} from semantic layer {semantic_layer_id}")
-
-            return semantic_layer
-
-        except (ClientSemanticLayer.DoesNotExist, ClientDataStore.DoesNotExist) as e:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+            return semantic_layer_data_store.client_data_store
+        except ClientSemanticLayerDataStore.DoesNotExist as e:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Semantic layer data store not found: {semantic_layer_id} {str(e)}",
+            )
         except Exception as e:
-            logger.error(f"Error removing data store from semantic layer", exc_info=True)
-            raise RuntimeError(str(e))
+            logger.error(f"Error getting data store", exc_info=True)
+            raise ValueError(str(e))
 
     def deactivate_semantic_layer(self, semantic_layer_id: str) -> None:
         """Deactivate a semantic layer"""
