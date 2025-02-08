@@ -1,3 +1,5 @@
+from typing import List, Dict, Any, Optional
+
 from app.models.mongodb.client import Client
 from app.utils.logger import get_logger
 
@@ -59,6 +61,17 @@ class ClickHouseService(BaseDataStoreService):
         except Exception as e:
             logger.error(f"Error creating ClickHouse database for client {client.client_id}", exc_info=True)
             raise e
+
+    def raw_execute(self, config: Dict[str, Any], query: str, params: Dict = None) -> List[tuple]:
+        """Execute raw query on ClickHouse. The config here is DataStore config not a admin[db_server] config"""
+        try:
+            client = self.driver.Client(**config)
+
+            return client.execute(query, params or {})
+
+        except Exception as e:
+            logger.error("Error executing raw ClickHouse query", exc_info=True)
+            raise ValueError(f"Database query error: {str(e)}")
 
     def test_connection(self, config: dict) -> bool:
         try:

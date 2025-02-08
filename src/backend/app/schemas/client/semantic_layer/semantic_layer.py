@@ -21,7 +21,6 @@ class SemanticLayerResponse(BaseModel):
     client: ClientInline
     client_repository: RepositoryInline
     client_semantic_server: SemanticServerInline
-    client_data_stores: List[ClientDataStoreResponse]
     repository_folder: str
     is_active: bool
     created_at: datetime
@@ -31,14 +30,17 @@ class SemanticLayerResponse(BaseModel):
     def from_db_model(cls, db_model: ClientSemanticLayer) -> "SemanticLayerResponse":
         return cls(
             id=str(db_model.id),
-            client=ClientInline.model_validate(db_model.client),
-            client_repository=RepositoryInline.model_validate(db_model.client_repository),
-            client_semantic_server=SemanticServerInline.model_validate(db_model.client_semantic_server),
-            client_data_stores=[
-                ClientDataStoreResponse.model_validate(data_store) for data_store in db_model.client_data_stores
-            ],
+            client=ClientInline.model_validate(db_model.client.to_serializable_dict()),
+            client_repository=RepositoryInline.model_validate(db_model.client_repository.to_serializable_dict()),
+            client_semantic_server=SemanticServerInline.model_validate(
+                db_model.client_semantic_server.to_serializable_dict()
+            ),
             repository_folder=db_model.repository_folder,
             is_active=db_model.is_active,
             created_at=db_model.created_at,
             updated_at=db_model.updated_at,
         )
+
+
+class AddorRemoveDataStoreRequest(BaseModel):
+    data_store_id: str

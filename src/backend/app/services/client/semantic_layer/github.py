@@ -21,33 +21,12 @@ class GitHubService:
             client = Github(repository.repository_config.api_key)
             repo = client.get_repo(self._get_repo_name(repository.repository_config.repo_url))
 
-            # Check branch exists
+            # Try to get default branch to verify access
             branch = repo.get_branch(repository.repository_config.branch)
-
-            # Test file operations
-            test_path = f"{repository.repository_config.base_path}/.test"
-            if test_path.startswith("/"):
-                test_path = test_path[1:]
-            test_content = "test"
-
-            # Try to create a test file
-            repo.create_file(
-                test_path, "Test repository access", test_content, branch=repository.repository_config.branch
-            )
-
-            # Clean up test file
-            file_content = repo.get_contents(test_path, ref=repository.repository_config.branch)
-            repo.delete_file(
-                test_path, "Clean up test file", file_content.sha, branch=repository.repository_config.branch
-            )
-
             return True
 
         except GithubException as e:
-            logger.error(f"GitHub validation failed: {str(e)}", exc_info=True)
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error during validation: {str(e)}", exc_info=True)
+            logger.error(f"GitHub access validation failed: {str(e)}", exc_info=True)
             return False
 
     def create_folder(self, repository: ClientRepository, folder_path: str) -> bool:
@@ -58,15 +37,29 @@ class GitHubService:
         try:
             client = Github(repository.repository_config.api_key)
             repo = client.get_repo(self._get_repo_name(repository.repository_config.repo_url))
-
             full_path = self._join_paths(repository.repository_config.base_path, folder_path, ".gitkeep")
-            content = base64.b64encode(b"").decode("utf-8")
 
-            repo.create_file(
-                full_path, f"Initialize {folder_path} folder", content, branch=repository.repository_config.branch
-            )
+            try:
+                # Check if path already exists
+                repo.get_contents(
+                    self._join_paths(repository.repository_config.base_path, folder_path),
+                    ref=repository.repository_config.branch,
+                )
+                logger.info(f"Folder {folder_path} already exists")
+                return True
 
-            return True
+            except GithubException as e:
+                if e.status == 404:
+                    # Create folder if it doesn't exist
+                    content = base64.b64encode(b"").decode("utf-8")
+                    repo.create_file(
+                        full_path,
+                        f"Initialize {folder_path} folder",
+                        content,
+                        branch=repository.repository_config.branch,
+                    )
+                    return True
+                raise
 
         except GithubException as e:
             logger.error(f"Failed to create folder {folder_path}: {str(e)}", exc_info=True)

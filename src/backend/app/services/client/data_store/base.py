@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import secrets
 import string
-from typing import Tuple
+from typing import Tuple, Dict, List, Any
 from app.models.mongodb.client import Client
 from app.models.mongodb.client_data_store import ClientDataStore
 from app.models.mongodb.utils import CredentialManager
@@ -38,6 +38,12 @@ class BaseDataStoreService(ABC):
     def create_database(self, client: Client) -> "ClientDataStore":
         """Create a new database for a client"""
         pass
+
+    @abstractmethod
+    def raw_execute(self, config: Dict[str, Any], query: str, params: Dict = None) -> List[tuple]:
+        """Execute raw query and return results"""
+        pass
+
 
     @abstractmethod
     def test_connection(self, config: dict) -> bool:
