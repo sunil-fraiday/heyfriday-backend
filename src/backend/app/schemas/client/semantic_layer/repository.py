@@ -31,6 +31,7 @@ class RepositoryInline(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
     id: str
+    repository_config: RepositoryConfigCreate
     client_id: Optional[str] = None
     is_active: bool
     is_default: bool
