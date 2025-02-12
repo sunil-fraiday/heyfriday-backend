@@ -8,18 +8,22 @@ from app.services.client.data_store.data_store import ClientDataStoreService
 from app.models.mongodb.utils import CredentialManager
 from app.models.mongodb.enums import EngineType, DatabaseType
 
+from .constants import NUMERIC_TYPES
+from .filters import DefaultMeasureFilter, MeasureFilterStrategy
+
 logger = get_logger(__name__)
 
 
 class SchemaGenerator:
     """Generate Cube.js schema files from database metadata"""
 
-    def __init__(self, data_store: ClientDataStore):
+    def __init__(self, data_store: ClientDataStore, measure_filter: MeasureFilterStrategy = DefaultMeasureFilter()):
         self.data_store = data_store
         credential_manager = CredentialManager(current_key=settings.ENCRYPTION_KEY)
         self.store_service = ClientDataStoreService(credential_manager=credential_manager)
         self.service = self.store_service.get_service(data_store.client.client_id, data_store.database_type)
         self.config = credential_manager.decrypt_config(data_store.config)
+        self.measure_filter = measure_filter
 
     def get_tables(self) -> List[str]:
         """Get list of tables"""
@@ -102,25 +106,6 @@ class SchemaGenerator:
 
     def map_type(self, db_type: str) -> str:
         """Map database types to Cube.js types"""
-        numeric_types = {
-            "integer",
-            "bigint",
-            "decimal",
-            "numeric",
-            "real",
-            "double precision",
-            "float",
-            "int8",
-            "int16",
-            "int32",
-            "int64",
-            "uint8",
-            "uint16",
-            "uint32",
-            "uint64",
-            "float32",
-            "float64",
-        }
 
         time_types = {
             "timestamp",
@@ -132,7 +117,7 @@ class SchemaGenerator:
         }
 
         db_type = db_type.lower()
-        if any(t in db_type for t in numeric_types):
+        if any(t in db_type for t in NUMERIC_TYPES):
             return "number"
         elif any(t in db_type for t in time_types):
             return "time"
@@ -142,56 +127,51 @@ class SchemaGenerator:
             return "string"
 
     def generate_schema_dict(self, table: str, columns: List[Dict]) -> Dict:
-        """Generate the schema dictionary for YAML"""
         try:
-            # Convert table name to PascalCase for cube name
             cube_name = "".join(word.capitalize() for word in table.split("_"))
-
-            # Create dimensions
-            dimensions = {}
+            
+            dimensions = []
             for col in columns:
-                dimension_type = self.map_type(col["type"])
                 dimension = {
+                    "name": col["name"],
                     "sql": f"{{CUBE}}.{col['name']}",
-                    "type": dimension_type,
+                    "type": self.map_type(col["type"]),
                     "title": " ".join(word.capitalize() for word in col["name"].split("_")),
                 }
-
                 if col["primary_key"]:
                     dimension["primaryKey"] = True
+                dimensions.append(dimension)
 
-                dimensions[col["name"]] = dimension
-
-            # Create measures
-            measures = {"count": {"type": "count"}}
-
-            # Add measures for numeric columns
-            numeric_columns = [col for col in columns if self.map_type(col["type"]) == "number"]
+            measures = [{"name": "count", "type": "count"}]
+            
+            numeric_columns = self.measure_filter.filter_columns(columns)
             for col in numeric_columns:
-                measures[f'{col["name"]}_sum'] = {
-                    "sql": f"{{CUBE}}.{col['name']}",
-                    "type": "sum",
-                    "title": f"Total {' '.join(word.capitalize() for word in col['name'].split('_'))}",
-                }
-                measures[f'{col["name"]}_avg'] = {
-                    "sql": f"{{CUBE}}.{col['name']}",
-                    "type": "avg",
-                    "title": f"Average {' '.join(word.capitalize() for word in col['name'].split('_'))}",
-                }
-
-            # Create the complete schema
-            schema = {
-                "cubes": [
+                col_name = col["name"]
+                measures.extend([
                     {
-                        "name": cube_name,
-                        "sql": f"SELECT * FROM {table}",
-                        "dataSource": self.data_store.database_type,
-                        "dimensions": dimensions,
-                        "measures": measures,
-                        "joins": {},
-                        "preAggregations": {},
+                        "name": f"{col_name}_sum",
+                        "sql": f"{{CUBE}}.{col_name}",
+                        "type": "sum",
+                        "title": f"Total {' '.join(word.capitalize() for word in col_name.split('_'))}"
+                    },
+                    {
+                        "name": f"{col_name}_avg",
+                        "sql": f"{{CUBE}}.{col_name}",
+                        "type": "avg",
+                        "title": f"Average {' '.join(word.capitalize() for word in col_name.split('_'))}"
                     }
-                ]
+                ])
+
+            schema = {
+                "cubes": [{
+                    "name": cube_name,
+                    "sql": f"SELECT * FROM {table}",
+                    "data_source": str(self.data_store.id),
+                    "dimensions": dimensions,
+                    "measures": measures,
+                    "joins": [],
+                    "preAggregations": []
+                }]
             }
 
             return schema
@@ -201,39 +181,30 @@ class SchemaGenerator:
             raise
 
     def generate_schema_files(self) -> Dict[str, str]:
-        """Generate Cube.js schema files for all tables"""
         try:
             tables = self.get_tables()
             generated_files = {}
 
+            class ListFlowStyleDumper(yaml.SafeDumper):
+                def increase_indent(self, flow=False, indentless=False):
+                    return super().increase_indent(flow, False)
+
             for table in tables:
-                try:
-                    logger.info(f"Processing table: {table}")
-
-                    # Get column information
-                    columns = self.get_columns(table)
-
-                    # Generate schema
-                    schema = self.generate_schema_dict(table, columns)
-
-                    # Convert to YAML
-                    yaml_content = yaml.dump(schema, sort_keys=False, indent=2, allow_unicode=True)
-
-                    # Add to generated files
-                    generated_files[f"{table}.yaml"] = yaml_content
-
-                    logger.info(f"Generated schema for table: {table}")
-
-                except Exception as e:
-                    logger.error(f"Error generating schema for table {table}", exc_info=True)
-                    raise
+                columns = self.get_columns(table)
+                schema = self.generate_schema_dict(table, columns)
+                yaml_content = yaml.dump(
+                    schema,
+                    sort_keys=False,
+                    indent=2,
+                    allow_unicode=True,
+                    Dumper=ListFlowStyleDumper
+                )
+                generated_files[f"{table}.yaml"] = yaml_content
 
             return generated_files
-
         except Exception as e:
             logger.error("Error generating schema files", exc_info=True)
             raise
-
 
 def get_schema_generator(data_store: ClientDataStore) -> SchemaGenerator:
     """Get schema generator for data store"""

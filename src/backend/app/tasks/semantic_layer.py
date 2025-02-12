@@ -4,7 +4,7 @@ from celery import shared_task
 
 from app.services.client.semantic_layer.data_store_sync import DataStoreSyncJobService
 from app.services.client.semantic_layer.github import GitHubService
-from app.services.client.semantic_layer.schema_generator import get_schema_generator
+from app.services.client.semantic_layer.schema.generator import get_schema_generator
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
