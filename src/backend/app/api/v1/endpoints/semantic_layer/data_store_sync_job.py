@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, status, Query
 from app.services.client.semantic_layer.data_store_sync import DataStoreSyncJobService
 from app.services.client.semantic_layer.semantic_layer import ClientSemanticLayerService
 from app.schemas.client.semantic_layer.data_store_sync import DataStoreResponse, DataStoreSyncStatus
-from app.services.client.semantic_layer.schema_generator import get_schema_generator
 from app.utils.logger import get_logger
 from app.tasks.semantic_layer import trigger_sync_job
 
