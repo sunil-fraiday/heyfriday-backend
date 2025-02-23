@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     DATABASE_URL: Optional[str] = None
     TEXT_TO_SQL_SERVICE_URL: Optional[str] = None
+    SLACK_AI_SERVICE_URL: str
+    SLACK_AI_TOKEN: str
     AI_SERVICE_URL: str = TEXT_TO_SQL_SERVICE_URL
     SWYT_WEBHOOK_URL: Optional[str] = None
     ENCRYPTION_KEY: str

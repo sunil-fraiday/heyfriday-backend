@@ -48,7 +48,7 @@ class ChatMessageService:
             attachments=attachments,
             category=message_data.category.value,
             external_id=message_data.external_id,
-            config=message_data.config,
+            config=message_data.config if isinstance(message_data.config, dict) else message_data.config.model_dump(),
         )
         chat_message.save()
 
@@ -92,10 +92,10 @@ class ChatMessageService:
         return [ChatMessageResponse.from_chat_message(msg) for msg in messages]
 
     @staticmethod
-    def get_message(message_id: str) -> ChatMessageResponse:
+    def get_message(message_id: str) -> ChatMessage:
         try:
             chat_message = ChatMessage.objects.get(**get_id_filter(message_id))
-            return ChatMessageResponse.from_chat_message(chat_message)
+            return chat_message
         except me.DoesNotExist:
             raise HTTPException(status_code=404, detail="Message not found")
 

@@ -13,8 +13,8 @@ async def create_message(message_data: ChatMessageCreate):
     print("Received message data:", message_data.model_dump_json())
     chat_message = ChatMessageService.create_chat_message(message_data)
 
-    ai_enabled = message_data.config.get("ai_enabled", True)
-    suggestion_mode = message_data.config.get("suggestion_mode", False)
+    ai_enabled = message_data.config.ai_enabled
+    suggestion_mode = message_data.config.suggestion_mode
 
     if ai_enabled and not suggestion_mode:
         trigger_chat_workflow(message_id=str(chat_message.id))

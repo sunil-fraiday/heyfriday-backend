@@ -32,7 +32,7 @@ class ChatMessageCreate(BaseChatMessageCreate):
     client_id: str = None
     client_channel_type: str = None
     session_id: str = None
-    config: Optional[dict] = Field(default_factory=MessageConfig)
+    config: Optional[MessageConfig] = Field(default_factory=MessageConfig)
     external_id: Optional[str] = None
 
 

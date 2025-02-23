@@ -192,10 +192,12 @@ def authorization(self, session_data: dict):
 
 @shared_task(bind=True)
 def generate_ai_response_task(self, session_data: dict):
+    message_id = session_data["message_id"]
+    message: ChatMessage = ChatMessage.objects.get(id=message_id)
+
+    session_id = message.session.id
     try:
         logger.info(f"Session data: {session_data}")
-        message_id = session_data["message_id"]
-        message: ChatMessage = ChatMessage.objects.get(id=message_id)
 
         processor = AIService()
         processed_message = processor.get_response(message_id=message_id)
@@ -234,7 +236,7 @@ def generate_ai_response_task(self, session_data: dict):
 
     except Exception as exc:
         # Send system error message
-        session = ChatSession.objects.get(id=session_data["session_id"])
+        session = ChatSession.objects.get(id=session_id)
         message = create_system_chat_message(
             session=session,
             error_message=AI_SERVICE_ERROR_MESSAGE,
