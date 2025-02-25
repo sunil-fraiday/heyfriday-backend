@@ -1,6 +1,4 @@
-from mongoengine import fields, Q
-from datetime import datetime, timezone
-from typing import List, Optional, Dict
+from mongoengine import fields
 
 from app.models.mongodb.base import BaseDocument
 from .event_types import EventType, EntityType
