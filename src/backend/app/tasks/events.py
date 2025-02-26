@@ -1,7 +1,9 @@
+import traceback
 from typing import Dict, Any, Optional
 from celery import shared_task
 
 from app.models.mongodb.events.event_types import EventType, EntityType
+from app.models.mongodb.events.event_delivery_attempt import AttemptStatus
 from app.services.events.event_delivery_tracking import EventDeliveryTrackingService
 from app.services.events.event import EventService
 from app.services.events.event_processor_dispatch import ProcessorDispatchService
@@ -53,9 +55,8 @@ def process_event(
     data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Process an event asynchronously with delivery tracking.
+    Process an event asynchronously.
     """
-
     try:
         # Get the original event to find the client_id
         event = EventService.get_event_by_id(event_id)
@@ -90,7 +91,7 @@ def process_event(
             "client_id": client_id,
         }
 
-        # For each processor, create a delivery record and dispatch
+        # For each processor, create a delivery record and dispatch in a separate task
         delivery_results = []
         for processor in processors:
             # Create delivery record
@@ -98,9 +99,9 @@ def process_event(
                 event_id=event_id, processor_id=str(processor.id), request_payload=dispatch_data
             )
 
-            # Dispatch to processor with tracking
-            success = ProcessorDispatchService.dispatch_to_processor(
-                processor=processor, event_data=dispatch_data, delivery_id=str(delivery.id)
+            # Dispatch to processor in a separate task with retry capability
+            deliver_to_processor.delay(
+                processor_id=str(processor.id), event_data=dispatch_data, delivery_id=str(delivery.id)
             )
 
             delivery_results.append(
@@ -108,13 +109,13 @@ def process_event(
                     "processor_id": str(processor.id),
                     "processor_name": processor.name,
                     "delivery_id": str(delivery.id),
-                    "success": success,
+                    "status": "dispatched",
                 }
             )
 
-        logger.info(f"Processed event {event_id} with {len(processors)} processors")
+        logger.info(f"Dispatched event {event_id} to {len(processors)} processors")
         return {
-            "status": "processed",
+            "status": "dispatched",
             "event_id": event_id,
             "client_id": client_id,
             "delivery_results": delivery_results,
@@ -122,5 +123,78 @@ def process_event(
 
     except Exception as e:
         logger.error(f"Error processing event {event_id}", exc_info=True)
-        # In fire-and-forget, we log the error but don't attempt to recover
+        raise
+
+
+@shared_task(bind=True, max_retries=3)
+def deliver_to_processor(self, processor_id: str, event_data: Dict[str, Any], delivery_id: str) -> Dict[str, Any]:
+    """
+    Deliver an event to a specific processor with retries.
+    """
+    try:
+        # Get the processor
+        processor = ProcessorConfigService.get_processor_by_id(processor_id)
+        if not processor:
+            logger.error(f"Processor {processor_id} not found")
+
+            # Record failure
+            EventDeliveryTrackingService.record_attempt(
+                delivery_id=delivery_id,
+                status=AttemptStatus.FAILURE,
+                error_message=f"Processor {processor_id} not found",
+            )
+
+            return {"status": "error", "message": "Processor not found"}
+
+        # Try to dispatch
+        result = ProcessorDispatchService.dispatch_to_processor(processor, event_data)
+        success, response_status, response_body, error_message = result
+
+        # Record the attempt
+        attempt = EventDeliveryTrackingService.record_attempt(
+            delivery_id=delivery_id,
+            status=AttemptStatus.SUCCESS if success else AttemptStatus.FAILURE,
+            response_status=response_status,
+            response_body=response_body,
+            logs=error_message,
+        )
+
+        # If failed and we have retries left, retry with exponential backoff
+        if not success:
+            if self.request.retries < self.max_retries:
+                # Exponential backoff: 60s, 120s, 240s
+                countdown = 60 * (2**self.request.retries)
+                logger.info(
+                    f"Retry {self.request.retries + 1}/{self.max_retries} for delivery {delivery_id} in {countdown}s"
+                )
+                raise self.retry(countdown=countdown, exc=Exception(error_message))
+            else:
+                logger.error(f"All retries failed for delivery {delivery_id}")
+
+        return {
+            "status": "success" if success else "failed",
+            "delivery_id": delivery_id,
+            "attempt": attempt.attempt_number,
+        }
+
+    except self.retry_error:
+        # This is a retry exception, let it propagate, The code will reach here if the dispatch fails.
+        raise
+    except Exception as e:
+        logger.error(f"Error delivering to processor {processor_id}", exc_info=True)
+
+        # Record failure unless it's already a retry
+        if not isinstance(e, self.retry_error):
+            EventDeliveryTrackingService.record_attempt(
+                delivery_id=delivery_id, status=AttemptStatus.FAILURE, logs=str(e) + traceback.format_exc()
+            )
+
+        # Retry if we have attempts left
+        if self.request.retries < self.max_retries:
+            countdown = 60 * (2**self.request.retries)
+            logger.info(
+                f"Retry {self.request.retries + 1}/{self.max_retries} for delivery {delivery_id} in {countdown}s"
+            )
+            raise self.retry(countdown=countdown, exc=e)
+
         raise

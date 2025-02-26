@@ -67,7 +67,7 @@ class ProcessorDispatchService:
                     error_message=error_message,
                 )
 
-            return success
+            return success, response_status, response_body, error_message
 
         except Exception as e:
             logger.error(f"Error dispatching to processor {processor.name}", exc_info=True)
@@ -78,7 +78,7 @@ class ProcessorDispatchService:
                     delivery_id=delivery_id, status=AttemptStatus.FAILURE, error_message=str(e)
                 )
 
-            return False
+            return False, None, None, str(e)
 
     @staticmethod
     def _dispatch_http_webhook(config: HttpWebhookConfig, event_data: Dict[str, Any]) -> bool:
