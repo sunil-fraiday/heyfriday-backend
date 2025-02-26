@@ -61,3 +61,18 @@ class EventService:
             query["event_type"] = event_type
 
         return Event.objects(**query).order_by("-created_at").limit(limit)
+    
+    @staticmethod
+    def get_event_by_id(event_id: str) -> Optional[Event]:
+        """
+        Get an event by its ID.
+        """
+        try:
+            return Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            logger.error(f"Event {event_id} not found", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving event {event_id}", exc_info=True)
+            return None
+
