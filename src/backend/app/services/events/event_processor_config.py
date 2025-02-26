@@ -164,3 +164,17 @@ class ProcessorConfigService:
         except Exception as e:
             logger.error(f"Error deleting processor config {processor_id}", exc_info=True)
             raise
+
+    @staticmethod
+    def get_processor_by_id(processor_id: str) -> Optional[EventProcessorConfig]:
+        """
+        Get a processor by ID.
+        """
+        try:
+            return EventProcessorConfig.objects.get(id=processor_id)
+        except EventProcessorConfig.DoesNotExist:
+            logger.error(f"Processor {processor_id} not found", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting processor {processor_id}", exc_info=True)
+            return None
