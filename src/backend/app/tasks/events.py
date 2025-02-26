@@ -44,7 +44,7 @@ def _get_client_id_for_entity(entity_type: str, entity_id: str) -> Optional[str]
         return None
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, queue="events")
 def process_event(
     self,
     event_id: str,
@@ -126,7 +126,7 @@ def process_event(
         raise
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, queue="events")
 def deliver_to_processor(self, processor_id: str, event_data: Dict[str, Any], delivery_id: str) -> Dict[str, Any]:
     """
     Deliver an event to a specific processor with retries.

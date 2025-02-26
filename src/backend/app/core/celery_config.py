@@ -12,6 +12,7 @@ def get_celery_settings():
         "task_annotations": {"*": {"rate_limit": "25/s"}},
         "task_routes": {
             "app.tasks.*": {"queue": "celery"},
+            "app.tasks.events.*": {"queue": "events"},
         },
     }
 
