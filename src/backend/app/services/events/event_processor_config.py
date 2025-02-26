@@ -85,7 +85,6 @@ class ProcessorConfigService:
             logger.error(f"Failed to create {processor_type} processor {name}", exc_info=True)
             raise
 
-
     @staticmethod
     def create_http_webhook_processor(
         name: str,
@@ -129,3 +128,39 @@ class ProcessorConfigService:
             description=description,
             is_active=is_active,
         )
+
+    @staticmethod
+    def get_matching_processors(
+        client_id: str, event_type: EventType, entity_type: EntityType
+    ) -> List[EventProcessorConfig]:
+        """
+        Find all active processor configurations that match the given criteria.
+        """
+        try:
+            processors = EventProcessorConfig.objects(
+                client=client_id, is_active=True, event_types__in=[event_type], entity_types__in=[entity_type]
+            )
+
+            return processors
+
+        except Exception as e:
+            logger.error(f"Error finding processors for client {client_id}, event {event_type}", exc_info=True)
+            return []
+
+    @staticmethod
+    def delete_processor_config(processor_id: str) -> bool:
+        """
+        Delete a processor configuration.
+        """
+        try:
+            processor = EventProcessorConfig.objects.get(id=processor_id)
+            processor.delete()
+            logger.info(f"Deleted processor config {processor_id}")
+            return True
+
+        except EventProcessorConfig.DoesNotExist:
+            logger.error(f"Processor config {processor_id} not found", exc_info=True)
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting processor config {processor_id}", exc_info=True)
+            raise
