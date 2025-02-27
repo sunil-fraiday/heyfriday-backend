@@ -148,21 +148,51 @@ class ProcessorConfigService:
             return []
 
     @staticmethod
-    def delete_processor_config(processor_id: str) -> bool:
+    def deactivate_processor(processor_id: str) -> bool:
         """
-        Delete a processor configuration.
+        Deactivate a processor configuration.
         """
         try:
             processor = EventProcessorConfig.objects.get(id=processor_id)
-            processor.delete()
-            logger.info(f"Deleted processor config {processor_id}")
+            processor.is_active = False
+            processor.save()
+            logger.info(f"Deactivated processor config {processor_id}")
             return True
 
         except EventProcessorConfig.DoesNotExist:
             logger.error(f"Processor config {processor_id} not found", exc_info=True)
             return False
         except Exception as e:
-            logger.error(f"Error deleting processor config {processor_id}", exc_info=True)
+            logger.error(f"Error deactivating processor config {processor_id}", exc_info=True)
+            raise
+
+    @staticmethod
+    def update_processor_config(processor_id: str, **kwargs) -> Optional[EventProcessorConfig]:
+        """
+        Update an existing processor configuration.
+        """
+        try:
+            processor = EventProcessorConfig.objects.get(id=processor_id)
+
+            # Handle special case for config updates
+            if "config" in kwargs:
+                # Update existing config rather than replacing it
+                processor.config.update(kwargs.pop("config"))
+
+            # Update the other fields
+            for key, value in kwargs.items():
+                if hasattr(processor, key):
+                    setattr(processor, key, value)
+
+            processor.save()
+            logger.info(f"Updated processor config {processor.name}")
+            return processor
+
+        except EventProcessorConfig.DoesNotExist:
+            logger.error(f"Processor config {processor_id} not found", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Error updating processor config {processor_id}", exc_info=True)
             raise
 
     @staticmethod
@@ -178,3 +208,31 @@ class ProcessorConfigService:
         except Exception as e:
             logger.error(f"Error getting processor {processor_id}", exc_info=True)
             return None
+
+    @staticmethod
+    def list_processors(
+        client_id: Optional[str] = None,
+        processor_type: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> List[EventProcessorConfig]:
+        """
+        List processor configurations with optional filtering.
+        """
+        try:
+            query = {}
+
+            if client_id:
+                query["client"] = client_id
+            if processor_type:
+                query["processor_type"] = processor_type
+            if is_active is not None:
+                query["is_active"] = is_active
+
+            processors = EventProcessorConfig.objects(**query).skip(skip).limit(limit)
+            return list(processors)
+
+        except Exception as e:
+            logger.error(f"Error listing processors", exc_info=True)
+            return []
