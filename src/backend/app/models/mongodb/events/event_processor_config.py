@@ -2,9 +2,7 @@ from mongoengine import fields
 from enum import Enum
 
 from app.models.mongodb.base import BaseDocument
-from app.models.mongodb.client import Client
 from app.models.schemas.processor_config import HttpWebhookConfig, AmqpConfig
-from app.models.mongodb.events.event_processor_config import ProcessorType
 from .event_types import EventType, EntityType
 
 
@@ -21,7 +19,7 @@ class EventProcessorConfig(BaseDocument):
 
     name = fields.StringField(required=True)
     description = fields.StringField()
-    client = fields.ReferenceField(Client, required=True)
+    client = fields.ReferenceField("Client", required=True)
     processor_type = fields.StringField(choices=[t.value for t in ProcessorType], required=True)
 
     # Processor-specific configuration
