@@ -3,6 +3,7 @@ import requests
 import json
 import pika
 from pika.exceptions import AMQPError
+import traceback
 
 from app.models.mongodb.events.event_processor_config import EventProcessorConfig, ProcessorType
 from app.services.events.event_delivery_tracking import EventDeliveryTrackingService
@@ -64,7 +65,7 @@ class ProcessorDispatchService:
                     status=AttemptStatus.SUCCESS if success else AttemptStatus.FAILURE,
                     response_status=response_status,
                     response_body=response_body,
-                    error_message=error_message,
+                    logs={"error": error_message},
                 )
 
             return success, response_status, response_body, error_message
@@ -75,7 +76,9 @@ class ProcessorDispatchService:
             # Update delivery record if provided
             if delivery_id:
                 EventDeliveryTrackingService.record_attempt(
-                    delivery_id=delivery_id, status=AttemptStatus.FAILURE, error_message=str(e)
+                    delivery_id=delivery_id,
+                    status=AttemptStatus.FAILURE,
+                    logs={"error": str(e) + traceback.format_exc()},
                 )
 
             return False, None, None, str(e)
