@@ -33,7 +33,7 @@ async def create_processor_config(data: ProcessorConfigCreate, api_key: str = De
             is_active=data.is_active,
         )
 
-        return processor
+        return ProcessorConfigResponse.from_db_model(processor)
     except ValueError as e:
         logger.error(f"Error creating processor config: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
@@ -61,7 +61,7 @@ async def list_processor_configs(
         )
 
         # Convert to response models
-        return list(processors)
+        return [ProcessorConfigResponse.from_db_model(processor) for processor in processors]
     except Exception as e:
         logger.error(f"Error listing processor configs: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -78,7 +78,7 @@ async def get_processor_config(processor_id: str, api_key: str = Depends(verify_
         if not processor:
             raise HTTPException(status_code=404, detail="Processor config not found")
 
-        return processor
+        return ProcessorConfigResponse.from_db_model(processor)
     except HTTPException:
         raise
     except Exception as e:
@@ -101,7 +101,7 @@ async def update_processor_config(
         if not processor:
             raise HTTPException(status_code=404, detail="Processor config not found")
 
-        return processor
+        return ProcessorConfigResponse.from_db_model(processor)
     except ValueError as e:
         logger.error(f"Error updating processor config: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
