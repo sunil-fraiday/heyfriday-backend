@@ -19,4 +19,4 @@ class PayloadService:
         session = strategy.get_session(entity=entity)
         payload = strategy.create_payload(entity=entity)
 
-        return payload, session
+        return payload

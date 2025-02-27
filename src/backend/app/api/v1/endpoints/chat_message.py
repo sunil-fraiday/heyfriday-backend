@@ -17,9 +17,9 @@ async def create_message(message_data: ChatMessageCreate):
     suggestion_mode = message_data.config.suggestion_mode
 
     if ai_enabled and not suggestion_mode:
-        trigger_chat_workflow(message_id=str(chat_message.id))
+        trigger_chat_workflow(message_id=str(chat_message.id), session_id=message_data.session_id)
     elif not ai_enabled and suggestion_mode:
-        trigger_suggestion_workflow(message_id=str(chat_message.id))
+        trigger_suggestion_workflow(message_id=str(chat_message.id), session_id=message_data.session_id)
 
     return chat_message
 

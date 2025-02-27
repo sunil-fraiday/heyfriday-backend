@@ -18,7 +18,7 @@ from app.models.mongodb.channel_request_log import ChannelRequestLog, EntityType
 from app.services.ai_service import AIService
 from app.services.chat.utils import create_system_chat_message
 from app.services.webhook.payload import PayloadService
-from app.services.chat.message import ChatMessageService
+from app.services.chat.message import ChatMessageService, get_session_id_filter
 from app.services.client import ChannelRequestLogService, ClientChannelService
 from app.services.webhook import MessagePayloadStrategy, SuggestionPayloadStrategy
 
@@ -67,7 +67,6 @@ def generate_ai_response_task(self, session_data: dict):
         chat_message_config = message.get_message_config()
 
         if chat_message_config.suggestion_mode:
-            # Create suggestion
             suggestion = ChatMessageSuggestion(
                 chat_session=message.session,
                 chat_message=message,
@@ -90,7 +89,7 @@ def generate_ai_response_task(self, session_data: dict):
         else:
             ai_message = ChatMessageService.create_chat_message(
                 message_data=ChatMessageCreate(
-                    client_id=message.session.client.id,
+                    client_id=str(message.session.client.client_id),
                     client_channel_type=message.session.client_channel.channel_type,
                     session_id=message.session.session_id,
                     text=processed_message.data.answer.answer_text,
@@ -132,7 +131,7 @@ def generate_ai_response_task(self, session_data: dict):
         )
 
         # Create system error message
-        session = ChatSession.objects.get(id=session_data["session_id"])
+        session = ChatSession.objects.get(**get_session_id_filter(session_data["session_id"]))
         error_message = create_system_chat_message(
             session=session,
             error_message=AI_SERVICE_ERROR_MESSAGE,
@@ -145,7 +144,7 @@ def generate_ai_response_task(self, session_data: dict):
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=str(error_message.id),
             parent_id=str(session.id),
-            data={"category": MessageCategory.ERROR},
+            data=PayloadService.create_payload(entity_id=str(error_message.id), entity_type=EntityType.CHAT_MESSAGE),
         )
 
         raise exc
@@ -220,23 +219,21 @@ def send_to_webhook_task(self, message_data: dict):
         raise
 
 
-def trigger_chat_workflow(message_id: str):
+def trigger_chat_workflow(message_id: str, session_id: str):
     """
     Starts the message processing chain.
     """
     process_chain = chain(
-        generate_ai_response_task.s(session_data={"message_id": message_id}),
-        send_to_webhook_task.s(),
+        generate_ai_response_task.s(session_data={"message_id": message_id, "session_id": session_id}),
     )
     process_chain.apply_async()
 
 
-def trigger_suggestion_workflow(message_id: str):
+def trigger_suggestion_workflow(message_id: str, session_id: str):
     """
     Starts the message processing chain.
     """
     process_chain = chain(
-        generate_ai_response_task.s(session_data={"message_id": message_id}),
-        send_to_webhook_task.s(),
+        generate_ai_response_task.s(session_data={"message_id": message_id, "session_id": session_id}),
     )
     process_chain.apply_async()
