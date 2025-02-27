@@ -8,11 +8,16 @@ class EventType(str, Enum):
 
     # Chat Message Events
     CHAT_MESSAGE_CREATED = "chat_message_created"
-    CHAT_MESSAGE_PROCESSING = "chat_message_processing"
-    CHAT_MESSAGE_COMPLETED = "chat_message_completed"
-    CHAT_MESSAGE_ERROR = "chat_message_error"
-    CHAT_MESSAGE_HANDOVER = "chat_message_handover"
 
+    # Chat Workflow Events
+    CHAT_WORKFLOW_PROCESSING = "chat_workflow_processing"
+    CHAT_WORKFLOW_COMPLETED = "chat_workflow_completed"
+    CHAT_WORKFLOW_ERROR = "chat_workflow_error"
+    CHAT_WORKFLOW_HANDOVER = "chat_workflow_handover"
+
+    # Chat Message Suggestion Events 
+    CHAT_SUGGESTION_CREATED = "chat_suggestion_created"
+    
     # AI Service Events
     AI_REQUEST_SENT = "ai_request_sent"
     AI_RESPONSE_RECEIVED = "ai_response_received"

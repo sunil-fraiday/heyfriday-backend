@@ -9,18 +9,19 @@ from celery.utils.log import get_task_logger
 import app.constants as constants
 from app.core.config import settings
 from app.db.mongodb_utils import connect_to_db
-from app.schemas.chat import ChatMessageResponse
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory, Attachment
+from app.schemas.chat import ChatMessageCreate
+from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
-from app.models.mongodb.client import KeycloakConfig
 from app.models.mongodb.channel_request_log import ChannelRequestLog, EntityType
+from app.models.mongodb.events.event_types import EventType
 from app.services.ai_service import AIService
-from app.services.analysis import MessageAnalysisService
 from app.services.chat.utils import create_system_chat_message
+from app.services.webhook.payload import PayloadService
 from app.services.chat.message import ChatMessageService
 from app.services.client import ChannelRequestLogService, ClientChannelService
-from app.services.keycloak import KeycloakAuthorizationService
+from app.services.events.event_publisher import EventPublisher
 from app.services.webhook import MessagePayloadStrategy, SuggestionPayloadStrategy
 
 logger = get_task_logger(__name__)
@@ -28,31 +29,12 @@ logger = get_task_logger(__name__)
 connect_to_db()
 
 
-INTENT_CLASSIFICATION_ERROR_MESSAGE = """
-🚨 Oops! We are not able to understand your intent for the given message. Please try rephrasing the message and try again.
-"""
-
-UNAUTHORIZED_MESSAGE = """
-🚨 Oops! You are not authorized to ask for this specific information.
-"""
-
-AUTHORIZATION_ERROR_MESSAGE = """
-🤖 We're sorry!
-We couldn't authorize your request.
-If this issue persists, please contact support.
-"""
-
 AI_SERVICE_ERROR_MESSAGE = """
 🤖 We're sorry!
 We couldn't generate a response to your message.
 Please try rephrasing your message and try again.
 """
 
-CATEGORY_ERROR_MESSAGE = """
-I understand your query requires specific expertise. I'm connecting you
-with one of our support specialists who will be able to assist you further.
-A team member will be with you shortly.
-"""
 
 WEBHOOK_ERROR_MESSAGE = """
 📡 Delivery Failed!
@@ -60,154 +42,31 @@ Your message was processed, but we couldn't respond.
 We'll retry shortly, or you can contact support if this persists.
 """
 
-ALLOWED_CATEGORIES = ["general_inquiry", "general_troubleshooting"]
-
-
-@shared_task(bind=True)
-def identify_intent_task(self, message_id: str):
-    """
-    First task: Handles intent classification and authorization.
-    """
-    try:
-        chat_message = ChatMessage.objects.get(id=message_id)
-        message_data = chat_message.text
-        logger.info(f"Message: {message_data}")
-        analysis_service = MessageAnalysisService(
-            aws_runtime=settings.AWS_BEDROCK_RUNTIME,
-            region_name=settings.AWS_BEDROCK_REGION,
-            access_key_id=settings.AWS_BEDROCK_ACCESS_KEY_ID,
-            secret_access_key=settings.AWS_BEDROCK_SECRET_ACCESS_KEY,
-            model_name="mistral.mistral-large-2402-v1:0",
-        )
-        intent = analysis_service.analyse_category(
-            chat_message=chat_message,
-            chat_history=ChatMessageService.list_messages(
-                session_id=chat_message.session.session_id, last_n=30, exclude_id=[message_id]
-            ),
-        )
-        logger.info(f"Category: {intent}")
-        proceed = intent.get("proceed")
-        if proceed:
-            # Pass session and message data to the next task
-            return {
-                "session_id": str(chat_message.session.id),
-                "message_id": str(chat_message.id),
-                "intent": intent,  # Pass the intent to the next task
-            }
-        else:
-            session = ChatMessage.objects.get(id=message_id).session
-            message = create_system_chat_message(
-                session=session,
-                error_message=CATEGORY_ERROR_MESSAGE,
-                message_category=MessageCategory.INFO,
-                confidence_score=0.0,
-            )
-            send_to_webhook_task.delay(
-                message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
-            )
-            if self.request.chain:  # Stop the chain if not in allowed categories
-                self.request.chain[:] = []
-
-    except Exception as exc:
-        session = ChatMessage.objects.get(id=message_id).session
-        message = create_system_chat_message(
-            session=session,
-            error_message=INTENT_CLASSIFICATION_ERROR_MESSAGE,
-            message_category=MessageCategory.ERROR,
-        )
-        send_to_webhook_task.delay(
-            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
-        )
-        raise exc  # Stop the chain if there is an exception here
-
-
-@shared_task(bind=True)
-def authorization(self, session_data: dict):
-    logger.info(f"Session data: {session_data}")
-    message_id = session_data["message_id"]
-    try:
-        message: ChatMessage = ChatMessage.objects.get(id=message_id)
-        session: ChatSession = message.session
-        client = session.client
-        keycloak_config: KeycloakConfig = client.get_keycloak_config()
-
-        if not keycloak_config:  # Continue without authorization flow if keycloak config is not available
-            return session_data
-
-        intent = session_data["intent"]
-        resource = intent.get("Resource", None)
-        scopes = intent.get("Scopes", [])
-        scope = scopes[0] if scopes else None
-        logger.info(f"Resource: {resource}, Scope: {scope}")
-
-        keycloak_service = KeycloakAuthorizationService(
-            server_url=keycloak_config.server_url,
-            realm=keycloak_config.realm,
-            client_id=keycloak_config.client_id,
-            client_secret=keycloak_config.client_secret,
-        )
-        admin_token = keycloak_service.get_admin_access_token(
-            keycloak_config.admin_username, keycloak_config.admin_password
-        )
-
-        # Perform the token exchange
-        exchanged_token = keycloak_service.exchange_token(admin_token, message.sender)
-        print("Exchanged Token:", exchanged_token)
-
-        if resource and scope:
-            is_authorized = keycloak_service.validate_user_authorization(
-                exchanged_token["access_token"], resource, scope
-            )
-
-            if is_authorized:
-                logger.info(f"User is authorized to access {resource} with scope {scope}.")
-                return session_data
-            else:
-                logger.info(f"User is NOT authorized to access {resource} with scope {scope}.")
-                message = create_system_chat_message(
-                    session=session,
-                    error_message=UNAUTHORIZED_MESSAGE,
-                    message_category=MessageCategory.INFO,
-                )
-                send_to_webhook_task.delay(
-                    message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
-                )
-                if self.request.chain:  # Stop the chain if not in allowed categories
-                    self.request.chain[:] = []
-
-        logger.info("Resource or Scope was not identified from the Intent classifier so skipping authorization.")
-    except Exception as exc:
-        # Send system error message
-        session = ChatSession.objects.get(id=session_data["session_id"])
-        message = create_system_chat_message(
-            session=session,
-            error_message=AUTHORIZATION_ERROR_MESSAGE,
-            message_category=MessageCategory.ERROR,
-        )
-        send_to_webhook_task.delay(
-            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
-        )
-        raise exc
-
 
 @shared_task(bind=True)
 def generate_ai_response_task(self, session_data: dict):
-    message_id = session_data["message_id"]
-    message: ChatMessage = ChatMessage.objects.get(id=message_id)
-
-    session_id = message.session.id
     try:
-        logger.info(f"Session data: {session_data}")
+        message_id = session_data["message_id"]
+        message: ChatMessage = ChatMessage.objects.get(id=message_id)
 
+        # Publish processing event
+        EventPublisher.publish(
+            event_type=EventType.CHAT_WORKFLOW_PROCESSING,
+            entity_type=EntityType.CHAT_MESSAGE,
+            entity_id=message_id,
+            parent_id=str(message.session.id),
+            data={"status": "ai_processing_started"},
+        )
+
+        # Process the AI request (existing code)
         processor = AIService()
         processed_message = processor.get_response(message_id=message_id)
 
+        # Create appropriate response entity
         chat_message_config = message.get_message_config()
-        ai_enabled = chat_message_config.ai_enabled
-        suggestion_mode = chat_message_config.suggestion_mode
 
-        response_data = {"session_id": str(message.session.id)}
-        if not ai_enabled and suggestion_mode:
+        if chat_message_config.suggestion_mode:
+            # Create suggestion
             suggestion = ChatMessageSuggestion(
                 chat_session=message.session,
                 chat_message=message,
@@ -215,41 +74,80 @@ def generate_ai_response_task(self, session_data: dict):
                 data={"sql_data": processed_message.data.answer.answer_data},
             )
             suggestion.save()
-            response_data["entity_id"] = str(suggestion.id)
-            response_data["entity_type"] = EntityType.CHAT_SUGGESTION.value
-        else:
-            ai_message = ChatMessage(
-                session=message.session,
-                sender=constants.BOT_SENDER_NAME,
-                sender_name=constants.BOT_SENDER_NAME,
-                sender_type=SenderType.ASSISTANT,
-                text=processed_message.data.answer.answer_text,
-                data={"sql_data": processed_message.data.answer.answer_data},
-                attachments=[
-                    Attachment(file_name=attachment.file_name, file_url=attachment.file_url)
-                    for attachment in processed_message.data.answer.attachments
-                ],
-                confidence_score=processed_message.data.confidence_score,
-            )
-            ai_message.save()
-            response_data["entity_id"] = str(ai_message.id)
-            response_data["entity_type"] = EntityType.CHAT_MESSAGE.value
 
-        # Pass message ID to the next task
-        return response_data
+            # Publish suggestion created event
+            EventPublisher.publish(
+                event_type=EventType.CHAT_SUGGESTION_CREATED,
+                entity_type=EntityType.CHAT_SUGGESTION,
+                entity_id=str(suggestion.id),
+                parent_id=message_id,
+                data=PayloadService.create_payload(
+                    entity_id=str(suggestion.id), entity_type=EntityType.CHAT_SUGGESTION
+                ),
+            )
+
+        else:
+            ai_message = ChatMessageService.create_chat_message(
+                message_data=ChatMessageCreate(
+                    client_id=message.session.client.id,
+                    client_channel_type=message.session.client_channel.channel_type,
+                    session_id=message.session.session_id,
+                    text=processed_message.data.answer.answer_text,
+                    sender_name=constants.BOT_SENDER_NAME,
+                    sender=constants.BOT_SENDER_NAME,
+                    sender_type=SenderType.ASSISTANT,
+                    confidence_score=processed_message.data.confidence_score,
+                    data={"sql_data": processed_message.data.answer.answer_data},
+                )
+            )
+
+            # Publish AI message created event
+            EventPublisher.publish(
+                event_type=EventType.CHAT_WORKFLOW_COMPLETED,
+                entity_type=EntityType.CHAT_MESSAGE,
+                entity_id=str(ai_message.id),
+                parent_id=str(message.session.id),
+                data={
+                    "user_message": PayloadService.create_payload(
+                        entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
+                    ),
+                    "ai_message": PayloadService.create_payload(
+                        entity_id=str(ai_message.id), entity_type=EntityType.CHAT_MESSAGE
+                    ),
+                },
+            )
+
+        # No more send_to_webhook_task!
+        return {"status": "success"}
 
     except Exception as exc:
-        # Send system error message
-        session = ChatSession.objects.get(id=session_id)
-        message = create_system_chat_message(
+        # Publish error event
+        EventPublisher.publish(
+            event_type=EventType.CHAT_WORKFLOW_ERROR,
+            entity_type=EntityType.CHAT_MESSAGE,
+            entity_id=message_id,
+            parent_id=str(message.session.id) if message else None,
+            data={"error": str(exc) + traceback.format_exc()},
+        )
+
+        # Create system error message
+        session = ChatSession.objects.get(id=session_data["session_id"])
+        error_message = create_system_chat_message(
             session=session,
             error_message=AI_SERVICE_ERROR_MESSAGE,
             message_category=MessageCategory.ERROR,
         )
-        send_to_webhook_task.delay(
-            message_data={"entity_id": str(message.id), "entity_type": EntityType.CHAT_MESSAGE.value}
+
+        # Publish error message created event
+        EventPublisher.publish(
+            event_type=EventType.CHAT_MESSAGE_CREATED,
+            entity_type=EntityType.CHAT_MESSAGE,
+            entity_id=str(error_message.id),
+            parent_id=str(session.id),
+            data={"category": MessageCategory.ERROR},
         )
-        raise exc  # Stop the chain
+
+        raise exc
 
 
 @shared_task(bind=True, max_retries=3)
