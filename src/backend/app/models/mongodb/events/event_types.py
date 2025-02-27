@@ -26,4 +26,5 @@ class EventType(str, Enum):
 class EntityType(str, Enum):
     CHAT_SESSION = "chat_session"
     CHAT_MESSAGE = "chat_message"
+    CHAT_SUGGESTION = "chat_suggestion"
     AI_SERVICE = "ai_service"
