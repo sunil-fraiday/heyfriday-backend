@@ -15,13 +15,11 @@ from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCate
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
 from app.models.mongodb.channel_request_log import ChannelRequestLog, EntityType
-from app.models.mongodb.events.event_types import EventType
 from app.services.ai_service import AIService
 from app.services.chat.utils import create_system_chat_message
 from app.services.webhook.payload import PayloadService
 from app.services.chat.message import ChatMessageService
 from app.services.client import ChannelRequestLogService, ClientChannelService
-from app.services.events.event_publisher import EventPublisher
 from app.services.webhook import MessagePayloadStrategy, SuggestionPayloadStrategy
 
 logger = get_task_logger(__name__)
@@ -45,6 +43,9 @@ We'll retry shortly, or you can contact support if this persists.
 
 @shared_task(bind=True)
 def generate_ai_response_task(self, session_data: dict):
+    from app.models.mongodb.events.event_types import EventType
+    from app.services.events.event_publisher import EventPublisher
+
     try:
         message_id = session_data["message_id"]
         message: ChatMessage = ChatMessage.objects.get(id=message_id)
