@@ -11,6 +11,7 @@ from .endpoints.semantic_layer.repository import router as repository_router
 from .endpoints.semantic_layer.semantic_server import router as semantic_server_router
 from .endpoints.semantic_layer.semantic_layer import router as semmantic_layer_router
 from .endpoints.semantic_layer.data_store_sync_job import router as data_store_sync_router
+from .endpoints.events.event_processor_config import router as event_processor_config_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 
@@ -25,3 +26,4 @@ api_v1_router.include_router(repository_router)
 api_v1_router.include_router(semantic_server_router)
 api_v1_router.include_router(semmantic_layer_router)
 api_v1_router.include_router(data_store_sync_router)
+api_v1_router.include_router(event_processor_config_router)
