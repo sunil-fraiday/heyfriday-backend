@@ -11,7 +11,7 @@ class BaseProcessorConfig(BaseModel):
 class HttpWebhookConfig(BaseProcessorConfig):
     """HTTP Webhook processor configuration"""
 
-    webhook_url: HttpUrl = Field(..., description="Webhook endpoint URL")
+    webhook_url: str = Field(..., description="Webhook endpoint URL")
     headers: Dict[str, str] = Field(default_factory=dict, description="HTTP headers to include")
     timeout: int = Field(default=10, ge=1, le=60, description="Request timeout in seconds")
 

@@ -1,8 +1,9 @@
 from typing import List, Optional, Union, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
+from datetime import datetime
 
 from app.models.mongodb.events.event_types import EventType, EntityType
-from app.models.mongodb.events.event_processor_config import ProcessorType
+from app.models.mongodb.events.event_processor_config import ProcessorType, EventProcessorConfig
 from app.models.schemas.processor_config import HttpWebhookConfig, AmqpConfig
 
 
@@ -33,6 +34,8 @@ class ProcessorConfigUpdate(BaseModel):
 class ProcessorConfigResponse(BaseModel):
     """Schema for processor configuration response"""
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     client_id: str
@@ -42,5 +45,30 @@ class ProcessorConfigResponse(BaseModel):
     entity_types: List[str]
     description: Optional[str] = None
     is_active: bool
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
+
+    @classmethod
+    def from_db_model(cls, db_model: EventProcessorConfig) -> "ProcessorConfigResponse":
+        """
+        Convert a database model instance to a response schema.
+
+        Args:
+            db_model: An EventProcessorConfig instance from the database
+
+        Returns:
+            ProcessorConfigResponse: The formatted response object
+        """
+        return cls(
+            id=str(db_model.id),
+            name=db_model.name,
+            client_id=str(db_model.client.client_id),
+            processor_type=db_model.processor_type,
+            config=db_model.config,
+            event_types=db_model.event_types,
+            entity_types=db_model.entity_types,
+            description=db_model.description,
+            is_active=db_model.is_active,
+            created_at=db_model.created_at,
+            updated_at=db_model.updated_at,
+        )

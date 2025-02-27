@@ -3,6 +3,7 @@ from pydantic import ValidationError, BaseModel
 
 from app.models.mongodb.events.event_processor_config import EventProcessorConfig, ProcessorType
 from app.models.mongodb.events.event_types import EventType, EntityType
+from app.models.mongodb.client import Client
 from app.models.schemas.processor_config import HttpWebhookConfig, AmqpConfig, BaseProcessorConfig
 from app.utils.logger import get_logger
 
@@ -63,10 +64,16 @@ class ProcessorConfigService:
             else:
                 raise ValueError(f"Config must be a dict or {config_class.__name__} instance")
 
+            client = None
+            try:
+                client = Client.objects.get(client_id=client_id)
+            except Client.DoesNotExist:
+                raise ValueError(f"Client with ID {client_id} does not exist")
+
             processor_config = EventProcessorConfig(
                 name=name,
                 description=description,
-                client=client_id,
+                client=client,
                 processor_type=processor_type,
                 config=typed_config.model_dump(),
                 event_types=[et.value for et in event_types],
