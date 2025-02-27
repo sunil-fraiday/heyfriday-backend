@@ -8,9 +8,6 @@ from fastapi import HTTPException
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
-from app.services.events.event_publisher import EventPublisher
-from app.models.mongodb.channel_request_log import EntityType
-from app.models.mongodb.events.event_types import EventType
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
 
@@ -26,6 +23,11 @@ def get_id_filter(message_id: str) -> Dict:
 class ChatMessageService:
     @staticmethod
     def create_chat_message(message_data: ChatMessageCreate) -> ChatMessageResponse:
+        from app.services.events.event_publisher import EventPublisher
+        from app.models.mongodb.events.event_types import EventType
+        from app.models.mongodb.channel_request_log import EntityType
+
+
         client = ClientService.get_client(message_data.client_id)
         client_channel = ClientChannelService.get_channel_by_type(
             client_id=message_data.client_id, channel_type=message_data.client_channel_type
