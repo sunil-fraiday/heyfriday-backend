@@ -8,6 +8,9 @@ from fastapi import HTTPException
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
+from app.services.events.event_publisher import EventPublisher
+from app.models.mongodb.channel_request_log import EntityType
+from app.models.mongodb.events.event_types import EventType
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
 
@@ -52,7 +55,16 @@ class ChatMessageService:
         )
         chat_message.save()
 
-        return ChatMessageResponse.from_chat_message(chat_message)
+        response = ChatMessageResponse.from_chat_message(chat_message)
+        EventPublisher.publish(
+            event_type=EventType.CHAT_MESSAGE_CREATED,
+            entity_type=EntityType.CHAT_MESSAGE,
+            entity_id=str(chat_message.id),
+            parent_id=message_data.session_id,
+            data=response,
+        )
+
+        return response
 
     @staticmethod
     def list_messages(
