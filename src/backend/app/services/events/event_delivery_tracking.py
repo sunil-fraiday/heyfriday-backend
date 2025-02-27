@@ -60,7 +60,7 @@ class EventDeliveryTrackingService:
             
             # Create attempt record
             attempt = EventDeliveryAttempt(
-                delivery=delivery,
+                event_delivery=delivery,
                 attempt_number=delivery.current_attempts,
                 status=status,
                 response_status=response_status,

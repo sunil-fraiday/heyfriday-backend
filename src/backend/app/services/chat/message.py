@@ -18,6 +18,13 @@ def get_id_filter(message_id: str) -> Dict:
         return {"id": message_id}
     else:
         return {"external_id": message_id}
+    
+
+def get_session_id_filter(session_id: str) -> Dict:
+    if ObjectId.is_valid(session_id):
+        return {"id": session_id}
+    else:
+        return {"session_id": session_id}
 
 
 class ChatMessageService:
@@ -63,7 +70,7 @@ class ChatMessageService:
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=str(chat_message.id),
             parent_id=message_data.session_id,
-            data=response,
+            data=response.model_dump(mode="json"),
         )
 
         return response

@@ -10,6 +10,18 @@ def get_celery_settings():
         "broker_url": settings.CELERY_BROKER_URL,
         # "result_backend": settings.CELERY_RESULT_BACKEND,
         "task_annotations": {"*": {"rate_limit": "25/s"}},
+        "task_queues": {
+            "celery": {
+                "exchange": "celery",
+                "exchange_type": "direct",
+                "routing_key": "celery",
+            },
+            "events": {
+                "exchange": "events",
+                "exchange_type": "direct",
+                "routing_key": "events",
+            },
+        },
         "task_routes": {
             "app.tasks.*": {"queue": "celery"},
             "app.tasks.events.*": {"queue": "events"},

@@ -141,7 +141,7 @@ def deliver_to_processor(self, processor_id: str, event_data: Dict[str, Any], de
             EventDeliveryTrackingService.record_attempt(
                 delivery_id=delivery_id,
                 status=AttemptStatus.FAILURE,
-                error_message=f"Processor {processor_id} not found",
+                logs={"error": f"Processor {processor_id} not found"},
             )
 
             return {"status": "error", "message": "Processor not found"}
@@ -156,7 +156,7 @@ def deliver_to_processor(self, processor_id: str, event_data: Dict[str, Any], de
             status=AttemptStatus.SUCCESS if success else AttemptStatus.FAILURE,
             response_status=response_status,
             response_body=response_body,
-            logs=error_message,
+            logs={"error": error_message},
         )
 
         # If failed and we have retries left, retry with exponential backoff
