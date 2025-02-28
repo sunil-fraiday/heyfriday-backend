@@ -117,6 +117,23 @@ def generate_ai_response_task(self, session_data: dict):
                 },
             )
 
+            if ai_message.confidence_score == 0:
+                # Publish handover event manually
+                EventPublisher.publish(
+                    event_type=EventType.CHAT_WORKFLOW_HANDOVER,
+                    entity_type=EntityType.CHAT_MESSAGE,
+                    entity_id=str(ai_message.id),
+                    parent_id=str(message.session.id),
+                    data={
+                        "user_message": PayloadService.create_payload(
+                            entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
+                        ),
+                        "ai_message": PayloadService.create_payload(
+                            entity_id=str(ai_message.id), entity_type=EntityType.CHAT_MESSAGE
+                        ),
+                    },
+                )
+
         # No more send_to_webhook_task!
         return {"status": "success"}
 
