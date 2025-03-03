@@ -25,7 +25,7 @@ class AIService:
                 response = requests.post(
                     settings.SLACK_AI_SERVICE_URL,
                     json={
-                        "id": "67b6fa6f3a4e46f5455999c7",
+                        "id": settings.SLACK_AI_SERVICE_WORKFLOW_ID,
                         "input_args": {
                             "client_id": "4rZvgHUh8PShgsy",
                             "data_store_id": "67b57cf0abb6a2d5a8ac5327",
