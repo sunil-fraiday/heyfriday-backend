@@ -9,13 +9,13 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY src/chart_service/requirements.txt .
 COPY pyproject.toml .
 
 RUN pip install -r requirements.txt
 
-COPY src/backend/app .
+COPY src/chart_service/app .
 
 WORKDIR /opt
 
-CMD ["uvicorn", "app.main:app", "--workers", "3", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--workers", "3", "--host", "0.0.0.0", "--port", "8005"]
