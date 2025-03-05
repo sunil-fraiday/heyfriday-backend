@@ -6,10 +6,16 @@ from typing import List, Union, Dict, Optional
 from .chat import ChatMessageResponse
 
 
+class AnswerAttachment(BaseModel):
+    file_name: str
+    file_url: str
+
+
 class Answer(BaseModel):
     answer_text: str
     answer_data: Union[List[Dict], Dict]
     answer_url: str
+    attachments: Optional[List[AnswerAttachment]] = Field(default_factory=list)
 
 
 class Data(BaseModel):

@@ -6,7 +6,7 @@ import json
 from datetime import timedelta
 
 from app.core.config import settings
-from app.schemas.ai_response import AIResponse, AIServiceRequest, Data, Answer
+from app.schemas.ai_response import AIResponse, AIServiceRequest, Data, Answer, AnswerAttachment
 from app.models.mongodb.client_channel import ChannelType, ClientChannel
 from app.utils.logger import get_logger
 from app.exceptions import AIProcessingException
@@ -40,7 +40,15 @@ class AIService:
                     status=ai_response["status"],
                     message="",
                     data=Data(
-                        answer=Answer(answer_data={}, answer_url="www.example.com", answer_text=ai_response["result"])
+                        answer=Answer(
+                            answer_data={},
+                            answer_url="www.example.com",
+                            answer_text=ai_response["result"]["text"],
+                            attachments=[
+                                AnswerAttachment(file_name=a["file_name"], file_url=a["file_url"])
+                                for a in ai_response["result"].get("attachments", [])
+                            ],
+                        )
                     ),
                 )
             else:
