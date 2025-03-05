@@ -13,6 +13,14 @@ class IdentifiersSchema(BaseModel):
     entities: List[EntityIdentifierSchema] = Field(..., min_items=1)
 
 
+class AxisTicksOptions(BaseModel):
+    values: Optional[List[Any]] = None
+    labels: Optional[List[str]] = None
+    rotation: Optional[int] = None
+    fontsize: Optional[int] = None
+    step: Optional[int] = None
+
+
 class ChartOptionsSchema(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -21,6 +29,8 @@ class ChartOptionsSchema(BaseModel):
     figsize: Optional[List[int]] = None
     color: Optional[str] = None
     grid: Optional[bool] = None
+    xticks: Optional[AxisTicksOptions] = None
+    yticks: Optional[AxisTicksOptions] = None
 
 
 class ChartRequestSchema(BaseModel):
