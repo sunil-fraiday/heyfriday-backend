@@ -13,8 +13,8 @@ class MessageConfig(BaseModel):
 
 class AttachmentCreate(BaseModel):
     file_name: str
-    file_type: str
-    file_size: int
+    file_type: Optional[str] = None
+    file_size: Optional[int] = None
     file_url: str
 
 

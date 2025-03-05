@@ -10,7 +10,7 @@ import app.constants as constants
 from app.core.config import settings
 from app.db.mongodb_utils import connect_to_db
 from app.schemas.chat import ChatMessageResponse
-from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
+from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory, Attachment
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
 from app.models.mongodb.client import KeycloakConfig
@@ -225,6 +225,10 @@ def generate_ai_response_task(self, session_data: dict):
                 sender_type=SenderType.ASSISTANT,
                 text=processed_message.data.answer.answer_text,
                 data={"sql_data": processed_message.data.answer.answer_data},
+                attachments=[
+                    Attachment(file_name=attachment.file_name, file_url=attachment.file_url)
+                    for attachment in processed_message.data.answer.attachments
+                ],
                 confidence_score=processed_message.data.confidence_score,
             )
             ai_message.save()

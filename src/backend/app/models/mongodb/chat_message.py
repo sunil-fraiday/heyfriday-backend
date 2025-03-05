@@ -21,8 +21,8 @@ class SenderType(str, Enum):
 
 class Attachment(EmbeddedDocument):
     file_name = fields.StringField(required=True)
-    file_type = fields.StringField(required=True)
-    file_size = fields.IntField(required=True)
+    file_type = fields.StringField(required=False)
+    file_size = fields.IntField(required=False)
     file_url = fields.StringField(required=True)
 
 
