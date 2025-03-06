@@ -9,7 +9,6 @@ from .base import WebhookPayloadStrategy
 class SuggestionPayloadStrategy(WebhookPayloadStrategy):
     def create_payload(self, entity: "ChatMessageSuggestion") -> Dict:
         payload = ChatMessageSuggestionResponse.from_suggestion(entity).model_dump(mode="json")
-        payload["type"] = EntityType.CHAT_SUGGESTION.value
         return payload
 
     def get_entity(self, entity_id: str) -> ChatMessageSuggestion:

@@ -18,11 +18,23 @@ def get_id_filter(message_id: str) -> Dict:
         return {"id": message_id}
     else:
         return {"external_id": message_id}
+    
+
+def get_session_id_filter(session_id: str) -> Dict:
+    if ObjectId.is_valid(session_id):
+        return {"id": session_id}
+    else:
+        return {"session_id": session_id}
 
 
 class ChatMessageService:
     @staticmethod
     def create_chat_message(message_data: ChatMessageCreate) -> ChatMessageResponse:
+        from app.services.events.event_publisher import EventPublisher
+        from app.models.mongodb.events.event_types import EventType
+        from app.models.mongodb.channel_request_log import EntityType
+
+
         client = ClientService.get_client(message_data.client_id)
         client_channel = ClientChannelService.get_channel_by_type(
             client_id=message_data.client_id, channel_type=message_data.client_channel_type
@@ -52,7 +64,16 @@ class ChatMessageService:
         )
         chat_message.save()
 
-        return ChatMessageResponse.from_chat_message(chat_message)
+        response = ChatMessageResponse.from_chat_message(chat_message)
+        EventPublisher.publish(
+            event_type=EventType.CHAT_MESSAGE_CREATED,
+            entity_type=EntityType.CHAT_MESSAGE,
+            entity_id=str(chat_message.id),
+            parent_id=message_data.session_id,
+            data=response.model_dump(mode="json"),
+        )
+
+        return response
 
     @staticmethod
     def list_messages(
