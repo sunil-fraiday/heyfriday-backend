@@ -9,8 +9,8 @@ from celery.utils.log import get_task_logger
 import app.constants as constants
 from app.core.config import settings
 from app.db.mongodb_utils import connect_to_db
-from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory, Attachment
-from app.schemas.chat import ChatMessageCreate
+from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
+from app.schemas.chat import ChatMessageCreate, AttachmentCreate
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
@@ -87,6 +87,7 @@ def generate_ai_response_task(self, session_data: dict):
             )
 
         else:
+            confidence_score = processed_message.data.confidence_score
             ai_message = ChatMessageService.create_chat_message(
                 message_data=ChatMessageCreate(
                     client_id=str(message.session.client.client_id),
@@ -96,8 +97,12 @@ def generate_ai_response_task(self, session_data: dict):
                     sender_name=constants.BOT_SENDER_NAME,
                     sender=constants.BOT_SENDER_NAME,
                     sender_type=SenderType.ASSISTANT,
-                    confidence_score=processed_message.data.confidence_score,
+                    confidence_score= confidence_score,
                     data={"sql_data": processed_message.data.answer.answer_data},
+                    attachments=[
+                        AttachmentCreate(file_name=a.file_name, file_url=a.file_url)
+                        for a in processed_message.data.answer.attachments
+                    ],
                 )
             )
 
@@ -117,7 +122,7 @@ def generate_ai_response_task(self, session_data: dict):
                 },
             )
 
-            if ai_message.confidence_score == 0:
+            if confidence_score == 0:
                 # Publish handover event manually
                 EventPublisher.publish(
                     event_type=EventType.CHAT_WORKFLOW_HANDOVER,
