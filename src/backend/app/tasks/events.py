@@ -1,6 +1,8 @@
 import traceback
 from typing import Dict, Any, Optional
 from celery import shared_task
+from celery.exceptions import Retry
+from celery import Task
 
 from app.models.mongodb.events.event_types import EventType, EntityType
 from app.models.mongodb.events.event_delivery_attempt import AttemptStatus
@@ -177,7 +179,7 @@ def deliver_to_processor(self, processor_id: str, event_data: Dict[str, Any], de
             "attempt": attempt.attempt_number,
         }
 
-    except self.retry_error:
+    except Retry:
         # This is a retry exception, let it propagate, The code will reach here if the dispatch fails.
         raise
     except Exception as e:
