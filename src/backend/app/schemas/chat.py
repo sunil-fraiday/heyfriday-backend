@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from app.models.mongodb.chat_message import MessageCategory, ChatMessage
+from app.models.mongodb.chat_message import MessageCategory, ChatMessage, SenderType
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
 
 
@@ -21,6 +21,7 @@ class AttachmentCreate(BaseModel):
 class BaseChatMessageCreate(BaseModel):
     sender: Optional[str] = None
     sender_name: Optional[str] = None
+    sender_type: Optional[SenderType] = Field(default=SenderType.USER)
     created_at: Optional[str] = None
     text: str
     attachments: Optional[List[AttachmentCreate]] = None
@@ -85,7 +86,7 @@ class ChatMessageResponse(BaseModel):
 
 class ChatMessageSuggestionResponse(BaseModel):
     id: str = Field(description="Suggestion ID")
-    created_at: datetime 
+    created_at: datetime
     updated_at: datetime
     chat_message: ChatMessageResponse
     session_id: str
