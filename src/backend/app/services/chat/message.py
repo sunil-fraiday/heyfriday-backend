@@ -18,7 +18,7 @@ def get_id_filter(message_id: str) -> Dict:
         return {"id": message_id}
     else:
         return {"external_id": message_id}
-    
+
 
 def get_session_id_filter(session_id: str) -> Dict:
     if ObjectId.is_valid(session_id):
@@ -33,7 +33,6 @@ class ChatMessageService:
         from app.services.events.event_publisher import EventPublisher
         from app.models.mongodb.events.event_types import EventType
         from app.models.mongodb.channel_request_log import EntityType
-
 
         client = ClientService.get_client(message_data.client_id)
         client_channel = ClientChannelService.get_channel_by_type(
@@ -57,6 +56,7 @@ class ChatMessageService:
             text=message_data.text,
             sender=message_data.sender,
             sender_name=message_data.sender_name,
+            sender_type=message_data.sender_type,
             attachments=attachments,
             category=message_data.category.value,
             external_id=message_data.external_id,
