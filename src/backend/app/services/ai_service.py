@@ -27,8 +27,8 @@ class AIService:
                     json={
                         "id": settings.SLACK_AI_SERVICE_WORKFLOW_ID,
                         "input_args": {
-                            "client_id": "4rZvgHUh8PShgsy",
-                            "data_store_id": "67b57cf0abb6a2d5a8ac5327",
+                            "client_id": chat_message.session.client.client_id,
+                            "user_id": str(chat_message.sender),
                             "human_msg": chat_message.text,
                             "session_id": str(chat_message.session.session_id),
                         },
