@@ -21,7 +21,7 @@ class AIService:
             chat_message = self._get_chat_message(message_id=message_id)
             client_channel: ClientChannel = chat_message.session.client_channel
 
-            if client_channel.channel_type == ChannelType.SLACK.value:
+            if client_channel.channel_type in [ChannelType.SLACK.value, ChannelType.SUNSHINE.value]:
                 response = requests.post(
                     settings.SLACK_AI_SERVICE_URL,
                     json={

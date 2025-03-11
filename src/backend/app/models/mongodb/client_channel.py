@@ -7,6 +7,7 @@ from .base import BaseDocument
 class ChannelType(Enum):
     WEBHOOK = "webhook"
     SLACK = "slack"
+    SUNSHINE = "sunshine"
 
 
 class ClientChannel(BaseDocument):
