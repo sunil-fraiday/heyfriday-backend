@@ -3,6 +3,7 @@ from typing import List, Optional, Dict
 from datetime import datetime, timezone
 
 import mongoengine as me
+from mongoengine import Q
 from fastapi import HTTPException
 
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
@@ -21,10 +22,10 @@ def get_id_filter(message_id: str) -> Dict:
 
 
 def get_session_id_filter(session_id: str) -> Dict:
+    query = Q(session_id=session_id)
     if ObjectId.is_valid(session_id):
-        return {"id": session_id}
-    else:
-        return {"session_id": session_id}
+        query = query | Q(id=session_id)
+    return query
 
 
 class ChatMessageService:

@@ -97,7 +97,7 @@ def generate_ai_response_task(self, session_data: dict):
                     sender_name=constants.BOT_SENDER_NAME,
                     sender=constants.BOT_SENDER_NAME,
                     sender_type=SenderType.ASSISTANT,
-                    confidence_score= confidence_score,
+                    confidence_score=confidence_score,
                     data={"sql_data": processed_message.data.answer.answer_data},
                     attachments=[
                         AttachmentCreate(file_name=a.file_name, file_url=a.file_url)
@@ -153,7 +153,8 @@ def generate_ai_response_task(self, session_data: dict):
         )
 
         # Create system error message
-        session = ChatSession.objects.get(**get_session_id_filter(session_data["session_id"]))
+        session_id_filter = get_session_id_filter(session_data["session_id"])
+        session = ChatSession.objects(session_id_filter).first()
         error_message = create_system_chat_message(
             session=session,
             error_message=AI_SERVICE_ERROR_MESSAGE,
