@@ -55,7 +55,7 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_WORKFLOW_PROCESSING,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=message_id,
-            parent_id=str(message.session.id),
+            parent_id=str(message.session.session_id),
             data={"status": "ai_processing_started"},
         )
 
@@ -111,7 +111,7 @@ def generate_ai_response_task(self, session_data: dict):
                 event_type=EventType.CHAT_WORKFLOW_COMPLETED,
                 entity_type=EntityType.CHAT_MESSAGE,
                 entity_id=str(ai_message.id),
-                parent_id=str(message.session.id),
+                parent_id=str(message.session.session_id),
                 data={
                     "user_message": PayloadService.create_payload(
                         entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
@@ -128,7 +128,7 @@ def generate_ai_response_task(self, session_data: dict):
                     event_type=EventType.CHAT_WORKFLOW_HANDOVER,
                     entity_type=EntityType.CHAT_MESSAGE,
                     entity_id=str(ai_message.id),
-                    parent_id=str(message.session.id),
+                    parent_id=str(message.session.session_id),
                     data={
                         "user_message": PayloadService.create_payload(
                             entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
@@ -148,7 +148,7 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_WORKFLOW_ERROR,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=message_id,
-            parent_id=str(message.session.id) if message else None,
+            parent_id=str(message.session.session_id) if message else None,
             data={"error": str(exc) + traceback.format_exc()},
         )
 
@@ -166,7 +166,7 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_MESSAGE_CREATED,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=str(error_message.id),
-            parent_id=str(session.id),
+            parent_id=str(session.session_id),
             data=PayloadService.create_payload(entity_id=str(error_message.id), entity_type=EntityType.CHAT_MESSAGE),
         )
 
