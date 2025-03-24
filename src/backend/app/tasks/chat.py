@@ -99,10 +99,7 @@ def generate_ai_response_task(self, session_data: dict):
                     sender_type=SenderType.ASSISTANT,
                     confidence_score=confidence_score,
                     data={"sql_data": processed_message.data.answer.answer_data},
-                    attachments=[
-                        AttachmentCreate(file_name=a.file_name, file_url=a.file_url)
-                        for a in processed_message.data.answer.attachments
-                    ],
+                    attachments=processed_message.data.answer.attachments,
                 )
             )
 
