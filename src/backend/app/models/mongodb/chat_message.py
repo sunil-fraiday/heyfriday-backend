@@ -20,10 +20,12 @@ class SenderType(str, Enum):
 
 
 class Attachment(EmbeddedDocument):
-    file_name = fields.StringField(required=True)
-    file_type = fields.StringField(required=False)
-    file_size = fields.IntField(required=False)
-    file_url = fields.StringField(required=True)
+    file_name = fields.StringField()
+    file_type = fields.StringField()
+    file_size = fields.IntField()
+    file_url = fields.StringField()
+    type = fields.StringField(default="image")  # "file", "image", "carousel"
+    carousel = fields.DictField()
 
 
 class ChatMessage(BaseDocument):

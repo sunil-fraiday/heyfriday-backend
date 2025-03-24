@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -11,11 +11,32 @@ class MessageConfig(BaseModel):
     ai_enabled: bool = Field(default=True, description="Whether to enable AI processing")
 
 
+class CarouselItemButton(BaseModel):
+    type: str  # "postback" or "link"
+    text: str
+    payload: Optional[Dict[str, Any]] = None  # For postback buttons
+    url: Optional[str] = None  # For link buttons
+
+
+class CarouselItem(BaseModel):
+    title: str
+    description: Optional[str] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
+    default_action_url: Optional[str] = None
+    buttons: Optional[List[CarouselItemButton]] = None
+
+
+class Carousel(BaseModel):
+    items: List[CarouselItem]
+
+
 class AttachmentCreate(BaseModel):
-    file_name: str
+    file_name: Optional[str] = None
+    file_url: Optional[str] = None
     file_type: Optional[str] = None
-    file_size: Optional[int] = None
-    file_url: str
+    type: str = "image"
+    carousel: Optional[Dict[str, Any]] = None
 
 
 class BaseChatMessageCreate(BaseModel):

@@ -4,9 +4,11 @@ import traceback
 import logging
 import json
 from datetime import timedelta
+from typing import List, Dict, Any
 
 from app.core.config import settings
-from app.schemas.ai_response import AIResponse, AIServiceRequest, Data, Answer, AnswerAttachment
+from app.schemas.ai_response import AIResponse, AIServiceRequest, Data, Answer
+from app.schemas.chat import AttachmentCreate
 from app.models.mongodb.client_channel import ChannelType, ClientChannel
 from app.utils.logger import get_logger
 from app.exceptions import AIProcessingException
@@ -36,6 +38,7 @@ class AIService:
                     headers={"Authorization": f"Basic {settings.SLACK_AI_TOKEN}"},
                 )
                 ai_response = response.json()
+                
                 return AIResponse(
                     status=ai_response["status"],
                     message="",
@@ -45,8 +48,7 @@ class AIService:
                             answer_url="www.example.com",
                             answer_text=ai_response["result"]["text"],
                             attachments=[
-                                AnswerAttachment(file_name=a["file_name"], file_url=a["file_url"])
-                                for a in ai_response["result"].get("attachments", [])
+                                self._parse_attachment(a) for a in ai_response["result"].get("attachments", [])
                             ],
                         )
                     ),
@@ -71,6 +73,25 @@ class AIService:
 
         chat_message = ChatMessageService.get_message(message_id=message_id)
         return chat_message
+
+    def _parse_attachment(self, attachment: Dict[str, Any]) -> AttachmentCreate:
+        """Parse different types of attachments from AI response."""
+        attachment_type = attachment.get("type", "file")
+
+        # For backwards compatibility, default to file type if no type specified
+        result = {
+            "file_name": attachment.get("file_name", ""),
+            "file_url": attachment.get("file_url", ""),
+            "file_type": attachment.get("file_type", ""),
+            "type": attachment_type,
+        }
+
+        # Add carousel data if present
+        if attachment_type == "carousel" and "carousel" in attachment:
+            result["carousel"] = attachment["carousel"]
+
+        print(result)
+        return AttachmentCreate(**result)
 
     def prepare_payload(self, message_id: str):
         from app.services.chat.message import ChatMessageService
