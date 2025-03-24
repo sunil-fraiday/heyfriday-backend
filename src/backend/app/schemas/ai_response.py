@@ -3,19 +3,14 @@ from datetime import datetime
 from app.models.mongodb.chat_message import SenderType
 
 from typing import List, Union, Dict, Optional
-from .chat import ChatMessageResponse
-
-
-class AnswerAttachment(BaseModel):
-    file_name: str
-    file_url: str
+from .chat import ChatMessageResponse, AttachmentCreate
 
 
 class Answer(BaseModel):
     answer_text: str
     answer_data: Union[List[Dict], Dict]
     answer_url: str
-    attachments: Optional[List[AnswerAttachment]] = Field(default_factory=list)
+    attachments: Optional[List[AttachmentCreate]] = Field(default_factory=list)
 
 
 class Data(BaseModel):
