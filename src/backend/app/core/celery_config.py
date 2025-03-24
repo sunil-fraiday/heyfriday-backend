@@ -7,7 +7,7 @@ from .config import settings
 @lru_cache()
 def get_celery_settings():
     return {
-        "broker_url": settings.CELERY_BROKER_URL,
+        "broker_url": settings.CELERY_BROKER_URL or settings.get_redis_url(),
         # "result_backend": settings.CELERY_RESULT_BACKEND,
         "task_annotations": {"*": {"rate_limit": "25/s"}},
         "task_queues": {
