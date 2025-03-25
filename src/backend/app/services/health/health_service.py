@@ -69,12 +69,10 @@ class HealthService:
                 return {
                     "status": "connected",
                     "workers": len(response),
-                    "broker": settings.CELERY_BROKER_URL or settings.get_redis_url(),
                 }
             else:
                 return {
                     "status": "no_workers",
-                    "broker": settings.CELERY_BROKER_URL or settings.get_redis_url(),
                 }
         except Exception as e:
             logger.error(f"Celery health check failed", exc_info=True)
@@ -92,11 +90,11 @@ class HealthService:
             Dictionary with overall readiness status and component checks
         """
         db_status = await cls.check_database()
-        celery_status = await cls.check_celery()
+        # celery_status = await cls.check_celery()
 
         components = {
             "database": db_status,
-            "celery": celery_status,
+            # "celery": celery_status,
         }
 
         # Determine overall readiness based on component checks
