@@ -55,8 +55,8 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_WORKFLOW_PROCESSING,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=message_id,
-            parent_id=str(message.session.session_id),
-            data={"status": "ai_processing_started"},
+            parent_id=str(message.session.id),
+            data={"status": "ai_processing_started", "session_id": str(message.session.session_id)},
         )
 
         # Process the AI request (existing code)
@@ -108,7 +108,7 @@ def generate_ai_response_task(self, session_data: dict):
                 event_type=EventType.CHAT_WORKFLOW_COMPLETED,
                 entity_type=EntityType.CHAT_MESSAGE,
                 entity_id=str(ai_message.id),
-                parent_id=str(message.session.session_id),
+                parent_id=str(message.session.id),
                 data={
                     "user_message": PayloadService.create_payload(
                         entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
@@ -116,6 +116,7 @@ def generate_ai_response_task(self, session_data: dict):
                     "ai_message": PayloadService.create_payload(
                         entity_id=str(ai_message.id), entity_type=EntityType.CHAT_MESSAGE
                     ),
+                    "session_id": str(message.session.session_id),
                 },
             )
 
@@ -125,7 +126,7 @@ def generate_ai_response_task(self, session_data: dict):
                     event_type=EventType.CHAT_WORKFLOW_HANDOVER,
                     entity_type=EntityType.CHAT_MESSAGE,
                     entity_id=str(ai_message.id),
-                    parent_id=str(message.session.session_id),
+                    parent_id=str(message.session.id),
                     data={
                         "user_message": PayloadService.create_payload(
                             entity_id=message_id, entity_type=EntityType.CHAT_MESSAGE
@@ -133,6 +134,7 @@ def generate_ai_response_task(self, session_data: dict):
                         "ai_message": PayloadService.create_payload(
                             entity_id=str(ai_message.id), entity_type=EntityType.CHAT_MESSAGE
                         ),
+                        "session_id": str(message.session.session_id),
                     },
                 )
 
@@ -145,8 +147,8 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_WORKFLOW_ERROR,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=message_id,
-            parent_id=str(message.session.session_id) if message else None,
-            data={"error": str(exc) + traceback.format_exc()},
+            parent_id=str(message.session.id) if message else None,
+            data={"error": str(exc) + traceback.format_exc(), "session_id": str(message.session.session_id) if message else None},
         )
 
         # Create system error message
@@ -163,7 +165,7 @@ def generate_ai_response_task(self, session_data: dict):
             event_type=EventType.CHAT_MESSAGE_CREATED,
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=str(error_message.id),
-            parent_id=str(session.session_id),
+            parent_id=str(session.id),
             data=PayloadService.create_payload(entity_id=str(error_message.id), entity_type=EntityType.CHAT_MESSAGE),
         )
 
