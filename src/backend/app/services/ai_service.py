@@ -38,7 +38,7 @@ class AIService:
                     headers={"Authorization": f"Basic {settings.SLACK_AI_TOKEN}"},
                 )
                 ai_response = response.json()
-                
+
                 return AIResponse(
                     status=ai_response["status"],
                     message="",
@@ -50,7 +50,8 @@ class AIService:
                             attachments=[
                                 self._parse_attachment(a) for a in ai_response["result"].get("attachments", [])
                             ],
-                        )
+                        ),
+                        confidence_score=ai_response["result"].get("confidence_score", 0.9),
                     ),
                 )
             else:
