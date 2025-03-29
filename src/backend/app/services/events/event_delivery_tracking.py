@@ -72,6 +72,13 @@ class EventDeliveryTrackingService:
             # Update delivery status
             if status == AttemptStatus.SUCCESS:
                 delivery.status = DeliveryStatus.COMPLETED
+                
+                # If successful response, try to update entity external_id
+                if response_body:
+                    EventDeliveryTrackingService.update_entity_external_id(
+                        delivery_id=delivery_id,
+                        response_body=response_body
+                    )
             elif status == AttemptStatus.FAILURE and delivery.current_attempts >= delivery.max_attempts:
                 delivery.status = DeliveryStatus.FAILED
             else:
@@ -112,3 +119,49 @@ class EventDeliveryTrackingService:
             status__in=[DeliveryStatus.PENDING, DeliveryStatus.IN_PROGRESS],
             current_attempts__lt=3  # Less than max attempts
         ).order_by("created_at").limit(limit)
+        
+    @staticmethod
+    def update_entity_external_id(
+        delivery_id: str,
+        response_body: Optional[Dict] = None
+    ) -> bool:
+        """
+        Update the external_id of the entity based on the response from the webhook.
+        Currently only supports CHAT_MESSAGE entities.
+        
+        Returns True if the entity was updated, False otherwise.
+        """
+        if not response_body or not isinstance(response_body, dict) or 'id' not in response_body:
+            return False
+            
+        try:
+            from app.models.mongodb.chat_message import ChatMessage
+            from app.models.mongodb.events.event_types import EntityType
+            
+            # Get the delivery
+            delivery = EventDelivery.objects.get(id=delivery_id)
+            
+            # Get the event
+            event = delivery.event
+            
+            # Only process CHAT_MESSAGE entities
+            if event.entity_type != EntityType.CHAT_MESSAGE:
+                return False
+                
+            # Get the message
+            message_id = event.entity_id
+            message = ChatMessage.objects.get(id=message_id)
+            
+            # Update the external_id
+            external_id = response_body.get('id')
+            if external_id:
+                message.external_id = str(external_id)
+                message.save()
+                logger.info(f"Updated external_id for message {message_id} to {external_id}")
+                return True
+                
+            return False
+            
+        except Exception as e:
+            logger.error(f"Failed to update external_id for delivery {delivery_id}", exc_info=True)
+            return False
