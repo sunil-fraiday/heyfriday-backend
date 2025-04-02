@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     MONGODB_URI: str
     CELERY_BROKER_URL: Optional[str] = None
+    CELERY_DEFAULT_QUEUE: Optional[str] = "chat_workflow"
+    CELERY_EVENTS_QUEUE: Optional[str] = "events"
 
     SLACK_AI_SERVICE_URL: str
     SLACK_AI_TOKEN: str
