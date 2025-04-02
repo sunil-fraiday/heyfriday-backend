@@ -13,6 +13,8 @@ def get_celery_settings():
         "broker_url": settings.CELERY_BROKER_URL or settings.get_redis_url(),
         # "result_backend": settings.CELERY_RESULT_BACKEND,
         "task_annotations": {"*": {"rate_limit": "25/s"}},
+        "worker_send_task_events": True,
+        "task_send_sent_event": True,
         "task_queues": {
             default_queue: {
                 "exchange": default_queue,
