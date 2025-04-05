@@ -17,6 +17,21 @@ class SenderType(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
+    
+    @classmethod
+    def is_valid_type(cls, value):
+        """
+        Check if a value is a valid sender type.
+        This includes both the default types and custom client types.
+        Custom client types are prefixed with 'client:'
+        """
+        # If it's a default type, return True
+        try:
+            cls(value)
+        except ValueError:
+            # Check if it's a custom client type (starts with 'client:')
+            if isinstance(value, str) and not value.startswith('client:'):
+                raise ValueError("Invalid sender type format")
 
 
 class Attachment(EmbeddedDocument):
@@ -33,7 +48,7 @@ class ChatMessage(BaseDocument):
     sender = fields.StringField()
     sender_name = fields.StringField()
     sender_type = fields.StringField(
-        choices=[sender_type.value for sender_type in SenderType], default=SenderType.USER
+        validation=SenderType.is_valid_type, default=SenderType.USER.value
     )
     session = fields.ReferenceField(ChatSession, required=True)
     text = fields.StringField(required=True)

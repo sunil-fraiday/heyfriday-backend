@@ -1,6 +1,6 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.mongodb.chat_message import MessageCategory, ChatMessage, SenderType
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
@@ -42,12 +42,27 @@ class AttachmentCreate(BaseModel):
 class BaseChatMessageCreate(BaseModel):
     sender: Optional[str] = None
     sender_name: Optional[str] = None
-    sender_type: Optional[SenderType] = Field(default=SenderType.USER)
+    sender_type: Optional[Union[SenderType, str]] = Field(default=SenderType.USER)
     created_at: Optional[str] = None
     text: str
     attachments: Optional[List[AttachmentCreate]] = None
     data: Optional[dict] = None
     category: MessageCategory = MessageCategory.MESSAGE
+
+    @field_validator("sender_type")
+    def validate_sender_type(cls, v):
+        if isinstance(v, SenderType):
+            return v
+        if isinstance(v, str):
+            # Check if it's a default type
+            try:
+                return SenderType(v)
+            except ValueError:
+                # Check if it's a custom client type
+                if v.startswith("client:"):
+                    return v
+                raise ValueError(f"Invalid sender_type: {v}. Custom types must start with 'client:'")
+        raise ValueError(f"Invalid sender_type: {v}")
 
 
 class ChatMessageCreate(BaseChatMessageCreate):

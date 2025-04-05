@@ -1,14 +1,17 @@
 from bson import ObjectId
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 from datetime import datetime, timezone
 
 import mongoengine as me
 from mongoengine import Q
 from fastapi import HTTPException
 
+from app.models.mongodb.chat_message import ChatMessage, SenderType
+from app.models.mongodb.chat_session import ChatSession
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
+from app.services.client.user_type import ClientUserTypeService
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
 
@@ -45,11 +48,34 @@ class ChatMessageService:
             session = ChatSession(session_id=message_data.session_id, client=client, client_channel=client_channel)
             session.save()
 
+        # Process attachments if any
         attachments = (
             [Attachment(**attach.model_dump()) for attach in message_data.attachments]
             if message_data.attachments
             else []
         )
+
+        # Validate sender_type if it's a custom client type
+        sender_type = message_data.sender_type
+        if isinstance(sender_type, str) and sender_type.startswith('client:'):
+            # Extract client_id and type_id from the sender_type
+            client_type_info = ClientUserTypeService.parse_sender_type(sender_type)
+            if client_type_info is None:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid custom sender type format: {sender_type}. Expected format: client:<client_id>:<type_id>"
+                )
+            
+            # Verify that this client user type exists and is active
+            client_id, type_id = client_type_info
+            user_type = ClientUserTypeService.get_user_type(client_id, type_id)
+            if not user_type or not user_type.is_active:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid or inactive client user type: {type_id} for client {client_id}"
+                )
+            # Update sender_type to the actual user type
+            sender_type = f"client:{client_id}:{type_id}"
 
         # Create the chat message
         chat_message = ChatMessage(
@@ -57,7 +83,7 @@ class ChatMessageService:
             text=message_data.text,
             sender=message_data.sender,
             sender_name=message_data.sender_name,
-            sender_type=message_data.sender_type,
+            sender_type=sender_type,
             attachments=attachments,
             category=message_data.category.value,
             external_id=message_data.external_id,
@@ -82,7 +108,7 @@ class ChatMessageService:
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
         last_n: Optional[int] = None,
-        sender_type: Optional[SenderType] = None,
+        sender_type: Optional[Union[SenderType, str]] = None,
         exclude_id: Optional[List[str]] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -99,7 +125,11 @@ class ChatMessageService:
         if user_id:
             query["sender"] = user_id
         if sender_type:
-            query["sender_type"] = sender_type.value
+            # Handle both enum and string sender types
+            if isinstance(sender_type, SenderType):
+                query["sender_type"] = sender_type.value
+            else:
+                query["sender_type"] = sender_type
         if exclude_id:
             query["id__nin"] = exclude_id
         if start_date:
