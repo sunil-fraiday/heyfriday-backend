@@ -44,7 +44,7 @@ class AIService:
                     message="",
                     data=Data(
                         answer=Answer(
-                            answer_data={},
+                            answer_data=ai_response["result"].get("data", {}),
                             answer_url="www.example.com",
                             answer_text=ai_response["result"]["text"],
                             attachments=[

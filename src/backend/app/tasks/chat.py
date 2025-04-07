@@ -71,7 +71,7 @@ def generate_ai_response_task(self, session_data: dict):
                 chat_session=message.session,
                 chat_message=message,
                 text=processed_message.data.answer.answer_text,
-                data={"sql_data": processed_message.data.answer.answer_data},
+                data={"meta_data": processed_message.data.answer.answer_data},
             )
             suggestion.save()
 
@@ -98,7 +98,7 @@ def generate_ai_response_task(self, session_data: dict):
                     sender=constants.BOT_SENDER_NAME,
                     sender_type=SenderType.ASSISTANT,
                     confidence_score=confidence_score,
-                    data={"sql_data": processed_message.data.answer.answer_data},
+                    data={"meta_data": processed_message.data.answer.answer_data},
                     attachments=processed_message.data.answer.attachments,
                 )
             )

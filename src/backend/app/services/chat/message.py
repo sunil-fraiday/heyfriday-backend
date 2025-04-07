@@ -87,6 +87,7 @@ class ChatMessageService:
             attachments=attachments,
             category=message_data.category.value,
             external_id=message_data.external_id,
+            data=message_data.data,
             config=message_data.config if isinstance(message_data.config, dict) else message_data.config.model_dump(),
         )
         chat_message.save()
