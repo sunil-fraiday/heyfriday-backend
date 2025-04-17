@@ -9,6 +9,24 @@ class TimeSeriesDataPoint(BaseModel):
     count: int = Field(..., description="Count of conversations at this time point")
 
 
+class HourlySessionDataPoint(BaseModel):
+    """Data point for sessions by hour in analytics responses"""
+    hour: str = Field(..., description="Hour of the day in 24-hour format (00-23)")
+    count: int = Field(..., description="Count of sessions that started during this hour")
+
+
+class DistributionDataPoint(BaseModel):
+    """Data point for distribution analysis"""
+    range: str = Field(..., description="Range bucket (e.g., '0-5s', '1-3m', '3-5', etc.)")
+    count: int = Field(..., description="Count of items in this range")
+
+
+class MessageDistributionDataPoint(BaseModel):
+    """Data point for message count distribution analysis"""
+    count: str = Field(..., description="Range of message counts (e.g., '1-2', '3-5', etc.)")
+    sessions: int = Field(..., description="Number of sessions with this message count range")
+
+
 class DashboardMetricsResponse(BaseModel):
     """Response model for dashboard analytics metrics"""
     success: bool = True
@@ -23,6 +41,9 @@ class DashboardMetricsData(BaseModel):
     containment_rate: float = Field(..., description="Percentage of conversations fully handled by bot")
     conversations_by_time: List[TimeSeriesDataPoint] = Field(
         ..., description="Aggregated count of conversations by time period"
+    )
+    sessions_by_hour: List[HourlySessionDataPoint] = Field(
+        ..., description="Aggregated count of sessions by hour of day (00-23)"
     )
     last_updated: datetime = Field(..., description="Timestamp when the data was last refreshed")
 
@@ -47,5 +68,17 @@ class BotEngagementMetricsData(BaseModel):
     )
     first_response_time: int = Field(
         ..., description="Average time between user's first message and bot's first response in seconds"
+    )
+    response_rate: float = Field(
+        ..., description="Percentage of user messages that received a successful bot response"
+    )
+    first_response_time_distribution: List[DistributionDataPoint] = Field(
+        ..., description="Distribution of first response times in different time ranges"
+    )
+    session_duration_distribution: List[DistributionDataPoint] = Field(
+        ..., description="Distribution of session durations in different time ranges"
+    )
+    messages_per_session_distribution: List[MessageDistributionDataPoint] = Field(
+        ..., description="Distribution of number of messages per session"
     )
     last_updated: datetime = Field(..., description="Timestamp when the data was last refreshed")
