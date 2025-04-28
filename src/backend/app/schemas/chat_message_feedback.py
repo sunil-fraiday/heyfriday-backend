@@ -7,7 +7,7 @@ from app.models.mongodb.chat_message_feedback import ChatMessageFeedback
 
 class ChatMessageFeedbackCreate(BaseModel):
     rating: int
-    comment: Optional[str]
+    comment: Optional[str] = None
     metadata: Dict
 
 
