@@ -21,7 +21,7 @@ def _get_client_id_for_entity(entity_type: str, entity_id: str) -> Optional[str]
     """
     from app.models.mongodb.chat_message import ChatMessage
     from app.models.mongodb.chat_session import ChatSession
-
+    from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
     try:
         if entity_type == EntityType.CHAT_MESSAGE:
             message = ChatMessage.objects.get(id=entity_id)
@@ -30,6 +30,10 @@ def _get_client_id_for_entity(entity_type: str, entity_id: str) -> Optional[str]
         elif entity_type == EntityType.CHAT_SESSION:
             session = ChatSession.objects.get(id=entity_id)
             return str(session.client.id)
+        
+        elif entity_type == EntityType.CHAT_SUGGESTION:
+            suggestion = ChatMessageSuggestion.objects.get(id=entity_id)
+            return str(suggestion.chat_session.client.id)
 
         elif entity_type == EntityType.AI_SERVICE:
             # For AI service events, we need to find the related chat message
