@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from app.models.mongodb.chat_message import MessageCategory, ChatMessage, SenderType
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
@@ -81,9 +81,11 @@ class BulkChatMessageCreate(BaseModel):
 
 
 class ChatMessageResponse(BaseModel):
+    model_config = ConfigDict(json_encoders={datetime: lambda dt: dt.replace(tzinfo=timezone.utc).isoformat()})
+    
     id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(description="UTC timestamp with timezone info")
+    updated_at: datetime = Field(description="UTC timestamp with timezone info")
     sender_id: Optional[str]
     sender_name: Optional[str]
     sender_type: Optional[str]
@@ -121,9 +123,11 @@ class ChatMessageResponse(BaseModel):
 
 
 class ChatMessageSuggestionResponse(BaseModel):
+    model_config = ConfigDict(json_encoders={datetime: lambda dt: dt.replace(tzinfo=timezone.utc).isoformat()})
+    
     id: str = Field(description="Suggestion ID")
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(description="UTC timestamp with timezone info")
+    updated_at: datetime = Field(description="UTC timestamp with timezone info")
     chat_message: ChatMessageResponse
     session_id: str
     text: str

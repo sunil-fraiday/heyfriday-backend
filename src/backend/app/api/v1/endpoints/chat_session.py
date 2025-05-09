@@ -1,6 +1,7 @@
 import mongoengine as me
 from fastapi import HTTPException, Depends, APIRouter, Query
 from typing import Optional, Annotated
+from datetime import datetime
 
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message import ChatMessage
@@ -37,12 +38,15 @@ async def list_chat_sessions(
     client_channel: Annotated[Optional[str], Query(description="Filter by client channel")] = None,
     user_id: Annotated[Optional[str], Query(description="Filter by user ID (sender)")] = None,
     active: Annotated[Optional[bool], Query(description="Filter by active status")] = None,
+    start_date: Annotated[Optional[datetime], Query(description="Filter sessions created after this date")] = None,
+    end_date: Annotated[Optional[datetime], Query(description="Filter sessions created before this date")] = None,
     skip: Annotated[int, Query(description="Number of records to skip", ge=0)] = 0,
     limit: Annotated[int, Query(description="Maximum number of records to return", ge=1, le=100)] = 10,
     api_key: str = Depends(verify_api_key),
 ):
     """
-    List chat sessions with optional filtering by client_id, client_channel, user_id, and active status.
+    List chat sessions with optional filtering by client_id, client_channel, user_id, active status,
+    and date range (start_date and end_date).
     """
     try:
         query_filter = {}
@@ -52,6 +56,12 @@ async def list_chat_sessions(
             query_filter["client_channel"] = client_channel
         if active is not None:
             query_filter["active"] = active
+            
+        # Add date range filters
+        if start_date:
+            query_filter["created_at__gte"] = start_date
+        if end_date:
+            query_filter["created_at__lte"] = end_date
 
         if user_id:
             unique_sessions = ChatMessage.objects.filter(sender=user_id).distinct("session")
