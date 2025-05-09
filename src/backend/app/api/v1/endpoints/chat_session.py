@@ -5,6 +5,7 @@ from typing import Optional, Annotated
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message import ChatMessage
 from app.schemas.chat_session import ChatSessionResponse, ChatSessionListResponse
+from app.api.v1.deps import verify_api_key
 
 router = APIRouter(prefix="", tags=["Chat Sessions"])
 
@@ -38,6 +39,7 @@ async def list_chat_sessions(
     active: Annotated[Optional[bool], Query(description="Filter by active status")] = None,
     skip: Annotated[int, Query(description="Number of records to skip", ge=0)] = 0,
     limit: Annotated[int, Query(description="Maximum number of records to return", ge=1, le=100)] = 10,
+    api_key: str = Depends(verify_api_key),
 ):
     """
     List chat sessions with optional filtering by client_id, client_channel, user_id, and active status.
