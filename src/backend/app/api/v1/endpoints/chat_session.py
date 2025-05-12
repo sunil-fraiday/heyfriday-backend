@@ -49,6 +49,13 @@ async def list_chat_sessions(
     and date range (start_date and end_date).
     """
     try:
+        # Validate date range if both dates provided
+        if start_date and end_date and end_date < start_date:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date range: end_date cannot be earlier than start_date"
+            )
+            
         query_filter = {}
         if client_id:
             query_filter["client"] = client_id
@@ -97,5 +104,9 @@ async def list_chat_sessions(
             sessions=session_list,
             total=total
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions to preserve their status codes and messages
+        raise
     except Exception as e:
+        # Catch all other exceptions and convert them to 500 errors
         raise HTTPException(status_code=500, detail=f"Error listing chat sessions: {str(e)}")
