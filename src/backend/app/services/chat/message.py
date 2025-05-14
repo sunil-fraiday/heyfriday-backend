@@ -13,6 +13,9 @@ from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
 from app.services.client.user_type import ClientUserTypeService
 from app.services.chat.thread_manager import ThreadManager
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_id_filter(message_id: str) -> Dict:
@@ -42,7 +45,6 @@ class ChatMessageService:
             client_id=message_data.client_id, channel_type=message_data.client_channel_type
         )
 
-        # Extract base session ID without any thread part
         base_session_id = message_data.session_id
 
         # Check if threading is enabled for this client
@@ -50,19 +52,23 @@ class ChatMessageService:
 
         if threading_enabled:
             # Only use thread management when threading is explicitly enabled
+            logger.info(f"Using thread management for message in session {base_session_id}")
             base_session_id = ThreadManager.parse_session_id(message_data.session_id)[0]
 
             session = ThreadManager.get_or_create_active_thread(
                 session_id=base_session_id, client=client, client_channel=client_channel
             )
+            logger.info(f"Message assigned to thread session: {session.session_id}")
         else:
             # For clients without threading - use traditional session handling
-            # This avoids any confusion with composite session IDs used for other purposes
+            logger.info(f"Using standard session handling for message in session {base_session_id}")
             try:
                 # Try to find existing session with this ID
                 session = ChatSession.objects.get(session_id=base_session_id)
+                logger.info(f"Using existing session {base_session_id}")
             except me.DoesNotExist:
                 # Create new standard session if not found
+                logger.info(f"Creating new standard session {base_session_id}")
                 session = ChatSession(session_id=base_session_id, client=client, client_channel=client_channel)
                 session.save()
 

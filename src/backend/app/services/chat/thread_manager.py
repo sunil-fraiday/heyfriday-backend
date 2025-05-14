@@ -6,6 +6,9 @@ from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_session_thread import ChatSessionThread
 from app.models.mongodb.client import Client
 from app.models.mongodb.utils import datetime_utc_now
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ThreadManager:
@@ -40,14 +43,19 @@ class ThreadManager:
 
             # Check if threading is enabled for this client
             if not client.thread_config or not isinstance(client.thread_config, dict):
+                logger.info(f"Threading disabled for client {client.client_id}: No thread_config found")
                 return False, None
 
             thread_config = client.thread_config
             if not thread_config.get("enabled", False):
+                logger.info(f"Threading disabled for client {client.client_id}: thread_config.enabled=False")
                 return False, None
 
             # Get inactivity minutes from config or use default (1440 min = 24 hours)
             inactivity_minutes = thread_config.get("inactivity_minutes", 1440)
+            logger.info(
+                f"Threading enabled for client {client.client_id} with inactivity_minutes={inactivity_minutes}"
+            )
 
             return True, inactivity_minutes
         except Exception:
@@ -98,11 +106,13 @@ class ThreadManager:
         """
         inactivity_threshold = datetime_utc_now() - timedelta(minutes=inactivity_minutes)
         return thread.last_activity >= inactivity_threshold
-    
+
     @classmethod
     def get_chat_session(cls, parent_session_id):
         """Get the most recently active thread for a parent session"""
-        return ChatSession.objects.filter(Q(session_id=parent_session_id) | Q(session_id__startswith=parent_session_id)).first()
+        return ChatSession.objects.filter(
+            Q(session_id=parent_session_id) | Q(session_id__startswith=parent_session_id)
+        ).first()
 
     @classmethod
     def create_new_thread(cls, parent_session_id):
@@ -141,6 +151,8 @@ class ThreadManager:
             last_activity=datetime_utc_now(),
         )
         thread.save()
+
+        logger.info(f"Created new thread: {thread_id} for session {parent_session_id}")
 
         return thread
 
@@ -213,10 +225,18 @@ class ThreadManager:
         # Get latest thread for this parent session
         latest_thread = cls.get_latest_thread(base_session_id)
 
-        # Check if we should use existing thread
+        # Check if we have a latest thread but it's inactive
+        if latest_thread and not latest_thread.is_active(inactivity_minutes) and not force_new:
+            logger.info(
+                f"Found inactive thread {latest_thread.thread_id} for session {base_session_id} "
+                f"(inactive for more than {inactivity_minutes} minutes)"
+            )
+            
+        # Use existing thread if active and not forcing new
         if not force_new and latest_thread and latest_thread.is_active(inactivity_minutes):
             # Update activity timestamp
             latest_thread.update_activity()
+            logger.info(f"Using existing active thread {latest_thread.thread_id} for session {base_session_id}")
             return latest_thread.chat_session
 
         # Check if this is a new session or we're creating a new thread for existing session
@@ -225,6 +245,8 @@ class ThreadManager:
             # Generate a thread ID
             thread_id = str(uuid.uuid4())[:8]
             threaded_session_id = cls.format_thread_session_id(base_session_id, thread_id)
+
+            logger.info(f"Creating first thread {thread_id} for new session {base_session_id}")
 
             # Create the session with thread ID
             session = ChatSession(session_id=threaded_session_id, client=client, client_channel=client_channel)
@@ -244,6 +266,7 @@ class ThreadManager:
             return session
         else:
             # Create a new thread for existing session
+            logger.info(f"Creating new thread for existing session {base_session_id}")
             new_thread = cls.create_new_thread(base_session_id)
             return new_thread.chat_session
 
