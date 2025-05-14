@@ -52,10 +52,9 @@ async def list_chat_sessions(
         # Validate date range if both dates provided
         if start_date and end_date and end_date < start_date:
             raise HTTPException(
-                status_code=400,
-                detail="Invalid date range: end_date cannot be earlier than start_date"
+                status_code=400, detail="Invalid date range: end_date cannot be earlier than start_date"
             )
-            
+
         query_filter = {}
         if client_id:
             query_filter["client"] = client_id
@@ -63,7 +62,7 @@ async def list_chat_sessions(
             query_filter["client_channel"] = client_channel
         if active is not None:
             query_filter["active"] = active
-            
+
         # Add date range filters
         if start_date:
             query_filter["created_at__gte"] = start_date
@@ -82,7 +81,7 @@ async def list_chat_sessions(
         total = ChatSession.objects.filter(**query_filter).count()
 
         # Query with pagination - order by created_at descending (newest first)
-        sessions = ChatSession.objects.filter(**query_filter).order_by('-created_at').skip(skip).limit(limit).all()
+        sessions = ChatSession.objects.filter(**query_filter).order_by("-created_at").skip(skip).limit(limit).all()
 
         # Format the response
         session_list = []
@@ -96,14 +95,11 @@ async def list_chat_sessions(
                     active=session.active,
                     client=str(session.client.id) if session.client else None,
                     client_channel=str(session.client_channel.id) if session.client_channel else None,
-                    participants=session.participants
+                    participants=session.participants,
                 )
             )
 
-        return ChatSessionListResponse(
-            sessions=session_list,
-            total=total
-        )
+        return ChatSessionListResponse(sessions=session_list, total=total)
     except HTTPException:
         # Re-raise HTTP exceptions to preserve their status codes and messages
         raise

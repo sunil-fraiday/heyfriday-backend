@@ -25,6 +25,9 @@ class Client(BaseDocument):
     keycloak_config = fields.DictField(required=False, default=None)
     max_structured_data_stores = fields.IntField(required=False, default=1)
     max_unstructured_data_stores = fields.IntField(required=False, default=1)
+    
+    # Thread configuration settings
+    thread_config = fields.DictField(required=False, default=None)
 
     is_active = fields.BooleanField(default=True)
 
