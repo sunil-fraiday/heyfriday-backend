@@ -159,3 +159,35 @@ async def resolve_thread_for_message(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error resolving thread: {str(e)}")
+
+
+@router.post("/sessions/{session_id}/close_thread")
+async def close_session_thread(
+    session_id: str,
+    thread_id: Annotated[Optional[str], Query(description="Specific thread ID to close, if empty closes latest")] = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """
+    Close (deactivate) a thread for a session. If thread_id is not provided, closes the latest active thread.
+    This ensures there's never more than one active thread per session unnecessarily.
+    
+    Closed threads can still be viewed in history but won't be used for new messages.
+    """
+    try:
+        # Check if threading is enabled for this client
+        threading_enabled, _ = ThreadManager.is_threading_enabled_for_session(session_id)
+        if not threading_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Threading is not enabled for this client. Configure thread_config in the client settings.",
+            )
+
+        result = ThreadManager.close_thread(session_id, thread_id)
+        
+        if result:
+            return {"status": "success", "message": "Thread closed successfully"}
+        else:
+            return {"status": "info", "message": "No active thread found to close"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error closing thread: {str(e)}")
