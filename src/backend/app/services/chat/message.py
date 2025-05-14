@@ -6,14 +6,13 @@ import mongoengine as me
 from mongoengine import Q
 from fastapi import HTTPException
 
-from app.models.mongodb.chat_message import ChatMessage, SenderType
+from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
 from app.services.client.user_type import ClientUserTypeService
-from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
-from app.models.mongodb.chat_session import ChatSession
+from app.services.chat.thread_manager import ThreadManager
 
 
 def get_id_filter(message_id: str) -> Dict:
@@ -42,11 +41,30 @@ class ChatMessageService:
         client_channel = ClientChannelService.get_channel_by_type(
             client_id=message_data.client_id, channel_type=message_data.client_channel_type
         )
-        try:
-            session = ChatSession.objects.get(session_id=message_data.session_id)
-        except me.DoesNotExist:
-            session = ChatSession(session_id=message_data.session_id, client=client, client_channel=client_channel)
-            session.save()
+
+        # Extract base session ID without any thread part
+        base_session_id = message_data.session_id
+
+        # Check if threading is enabled for this client
+        threading_enabled, _ = ThreadManager.is_threading_enabled_for_client(client)
+
+        if threading_enabled:
+            # Only use thread management when threading is explicitly enabled
+            base_session_id = ThreadManager.parse_session_id(message_data.session_id)[0]
+
+            session = ThreadManager.get_or_create_active_thread(
+                session_id=base_session_id, client=client, client_channel=client_channel
+            )
+        else:
+            # For clients without threading - use traditional session handling
+            # This avoids any confusion with composite session IDs used for other purposes
+            try:
+                # Try to find existing session with this ID
+                session = ChatSession.objects.get(session_id=base_session_id)
+            except me.DoesNotExist:
+                # Create new standard session if not found
+                session = ChatSession(session_id=base_session_id, client=client, client_channel=client_channel)
+                session.save()
 
         # Process attachments if any
         attachments = (
@@ -57,22 +75,21 @@ class ChatMessageService:
 
         # Validate sender_type if it's a custom client type
         sender_type = message_data.sender_type
-        if isinstance(sender_type, str) and sender_type.startswith('client:'):
+        if isinstance(sender_type, str) and sender_type.startswith("client:"):
             # Extract client_id and type_id from the sender_type
             client_type_info = ClientUserTypeService.parse_sender_type(sender_type)
             if client_type_info is None:
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"Invalid custom sender type format: {sender_type}. Expected format: client:<client_id>:<type_id>"
+                    status_code=400,
+                    detail=f"Invalid custom sender type format: {sender_type}. Expected format: client:<client_id>:<type_id>",
                 )
-            
+
             # Verify that this client user type exists and is active
             client_id, type_id = client_type_info
             user_type = ClientUserTypeService.get_user_type(client_id, type_id)
             if not user_type or not user_type.is_active:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid or inactive client user type: {type_id} for client {client_id}"
+                    status_code=400, detail=f"Invalid or inactive client user type: {type_id} for client {client_id}"
                 )
             # Update sender_type to the actual user type
             sender_type = f"client:{client_id}:{type_id}"
@@ -120,7 +137,7 @@ class ChatMessageService:
         if session_id:
             try:
                 chat_session = ChatSession.objects.get(session_id=session_id)
-            except me.DoesNotExist as e:
+            except me.DoesNotExist:
                 raise HTTPException(status_code=404, detail="Chat Session not found")
             query["session"] = chat_session.id
         if user_id:
