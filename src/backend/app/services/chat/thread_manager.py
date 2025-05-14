@@ -115,8 +115,74 @@ class ThreadManager:
         ).first()
 
     @classmethod
+    def deactivate_thread(cls, thread):
+        """
+        Deactivate a thread and its associated chat session
+        
+        Args:
+            thread: The ChatSessionThread object to deactivate
+        """
+        if not thread or not thread.active:
+            return False
+            
+        # Deactivate the thread
+        thread.active = False
+        thread.save()
+        logger.info(f"Deactivated thread {thread.thread_id} for session {thread.parent_session_id}")
+        
+        # Also deactivate the associated chat session
+        if thread.chat_session:
+            logger.info(f"Deactivating chat session {thread.chat_session.session_id}")
+            thread.chat_session.active = False
+            thread.chat_session.save()
+            
+        return True
+    
+    @classmethod
+    def close_active_threads(cls, parent_session_id):
+        """Close (deactivate) all active threads for a parent session and their associated chat sessions"""
+        # Find all active threads for this parent session
+        existing_active_threads = ChatSessionThread.objects.filter(
+            parent_session_id=parent_session_id, active=True
+        )
+        
+        deactivated_count = 0
+        # Deactivate all existing active threads
+        for thread in existing_active_threads:
+            if cls.deactivate_thread(thread):
+                deactivated_count += 1
+            
+        return deactivated_count
+    
+    @classmethod
+    def close_thread(cls, session_id, thread_id=None):
+        """Close a specific thread or the latest active thread for a session"""
+        parent_session_id = cls.parse_session_id(session_id)[0]
+        
+        if thread_id:
+            # Close specific thread
+            try:
+                thread = ChatSessionThread.objects.get(parent_session_id=parent_session_id, thread_id=thread_id)
+                if cls.deactivate_thread(thread):
+                    logger.info(f"Closed thread {thread_id} for session {parent_session_id}")
+                    return True
+                else:
+                    logger.info(f"Thread {thread_id} for session {parent_session_id} was already closed")
+                    return False
+            except Exception as e:
+                logger.error(f"Failed to close thread {thread_id}: {str(e)}")
+                return False
+        else:
+            # Close latest active thread
+            latest_thread = cls.get_latest_thread(parent_session_id)
+            if cls.deactivate_thread(latest_thread):
+                logger.info(f"Closed latest thread {latest_thread.thread_id} for session {parent_session_id}")
+                return True
+            return False
+    
+    @classmethod
     def create_new_thread(cls, parent_session_id):
-        """Create a new thread for the given parent session"""
+        """Create a new thread for an existing parent session"""
         try:
             # First try to find by session_id field
             parent_session = cls.get_chat_session(parent_session_id)
@@ -126,6 +192,9 @@ class ThreadManager:
                 parent_session = cls.get_chat_session(parent_session_id)
             except Exception as e:
                 raise ValueError(f"Failed to find parent session: {str(e)}")
+
+        # Deactivate any existing active threads for this parent session
+        cls.close_active_threads(parent_session_id)
 
         # Generate new thread ID
         thread_id = str(uuid.uuid4())[:8]
@@ -151,7 +220,7 @@ class ThreadManager:
             last_activity=datetime_utc_now(),
         )
         thread.save()
-
+        
         logger.info(f"Created new thread: {thread_id} for session {parent_session_id}")
 
         return thread
