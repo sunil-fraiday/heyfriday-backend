@@ -1,6 +1,7 @@
 import uuid
 from datetime import timedelta
 from mongoengine import Q
+import traceback
 
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_session_thread import ChatSessionThread
@@ -83,7 +84,7 @@ class ThreadManager:
         """Check if threading is enabled for the session's client"""
         try:
             # Find the session's client
-            session = ChatSession.objects.get(Q(session_id=session_id) | Q(session_id__startswith=session_id))
+            session = ChatSession.objects.filter(Q(session_id=session_id) | Q(session_id__startswith=session_id), active = True).first()
             if not session.client:
                 return False, None
 
@@ -91,6 +92,8 @@ class ThreadManager:
             return cls.is_threading_enabled_for_client(client)
         except Exception:
             # If we can't determine the client or config, disable threading
+            logger.error("Failed to determine threading config for session", session_id)
+            logger.error(traceback.format_exc())
             return False, None
 
     @classmethod

@@ -15,6 +15,7 @@ from .endpoints.events.event_processor_config import router as event_processor_c
 from .endpoints.health import router as health_router
 from .endpoints.metrics import router as metrics_router
 from .endpoints.analytics import router as analytics_router
+from .endpoints.chat_session_thread import router as chat_session_thread_router
 from .client.user_type import router as client_user_type_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -35,3 +36,4 @@ api_v1_router.include_router(health_router)
 api_v1_router.include_router(metrics_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(client_user_type_router)
+api_v1_router.include_router(chat_session_thread_router)
