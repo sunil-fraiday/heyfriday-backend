@@ -80,8 +80,8 @@ async def list_chat_sessions(
         # Get total count for pagination metadata
         total = ChatSession.objects.filter(**query_filter).count()
 
-        # Query with pagination - order by created_at descending (newest first)
-        sessions = ChatSession.objects.filter(**query_filter).order_by("-created_at").skip(skip).limit(limit).all()
+        # Query with pagination - order by updated_at descending (newest first)
+        sessions = ChatSession.objects.filter(**query_filter).order_by("-updated_at").skip(skip).limit(limit).all()
 
         # Format the response
         session_list = []
