@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from app.models.mongodb.chat_message import ChatMessage, Attachment, SenderType
 from app.models.mongodb.chat_session import ChatSession
+from app.models.mongodb.utils import datetime_utc_now
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, BulkChatMessageCreate
 from app.services.client.client import ClientService
 from app.services.client.client_channel import ClientChannelService
@@ -114,6 +115,9 @@ class ChatMessageService:
             config=message_data.config if isinstance(message_data.config, dict) else message_data.config.model_dump(),
         )
         chat_message.save()
+
+        session.updated_at = datetime_utc_now()
+        session.save()
 
         response = ChatMessageResponse.from_chat_message(chat_message)
         EventPublisher.publish(

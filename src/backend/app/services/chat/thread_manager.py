@@ -134,7 +134,7 @@ class ThreadManager:
         """Get the most recently active thread for a parent session"""
         return ChatSession.objects.filter(
             Q(session_id=parent_session_id) | Q(session_id__startswith=parent_session_id)
-        ).first()
+        ).order_by("-updated_at").first()
 
     @classmethod
     def deactivate_thread(cls, thread):
@@ -208,12 +208,8 @@ class ThreadManager:
         try:
             # First try to find by session_id field
             parent_session = cls.get_chat_session(parent_session_id)
-        except Exception:
-            try:
-                # Fallback to using the MongoDB id if session_id doesn't match
-                parent_session = cls.get_chat_session(parent_session_id)
-            except Exception as e:
-                raise ValueError(f"Failed to find parent session: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Failed to find parent session: {str(e)}")
 
         # Deactivate any existing active threads for this parent session
         cls.close_active_threads(parent_session_id)
