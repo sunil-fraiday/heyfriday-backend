@@ -27,13 +27,32 @@ class ThreadManager:
         """Format the composite session_id"""
         return f"{parent_id}#{thread_id}"
 
-    @staticmethod
-    def parse_session_id(session_id):
+    @classmethod
+    def parse_session_id(cls, session_id):
         """Parse composite session_id into parent and thread components"""
         if session_id and "#" in session_id:
             parts = session_id.split("#", 1)
             return parts[0], parts[1]
         return session_id, None
+
+    @classmethod
+    def get_base_session_id_for_event(cls, session_id):
+        """
+        Get the base session ID for event payloads, stripping any thread information.
+        This ensures that external systems always receive consistent session IDs
+        regardless of threading being enabled.
+        
+        Args:
+            session_id: The potentially threaded session ID
+            
+        Returns:
+            The base session ID without any thread component
+        """
+        if not session_id:
+            return session_id
+            
+        base_session_id, _ = cls.parse_session_id(session_id)
+        return base_session_id
 
     @classmethod
     def is_threading_enabled_for_client(cls, client):

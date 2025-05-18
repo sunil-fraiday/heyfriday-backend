@@ -148,10 +148,14 @@ def generate_ai_response_task(self, session_data: dict):
             entity_type=EntityType.CHAT_MESSAGE,
             entity_id=message_id,
             parent_id=str(message.session.id) if message else None,
-            data={"error": str(exc) + traceback.format_exc(), "session_id": str(message.session.session_id) if message else None},
+            data={
+                "error": str(exc) + traceback.format_exc(),
+                "session_id": str(message.session.session_id) if message else None,
+            },
         )
 
         # Create system error message
+        logger.info(f"Creating system error message on session data {session_data}")
         session_id_filter = get_session_id_filter(session_data["session_id"])
         session = ChatSession.objects(session_id_filter).first()
         error_message = create_system_chat_message(

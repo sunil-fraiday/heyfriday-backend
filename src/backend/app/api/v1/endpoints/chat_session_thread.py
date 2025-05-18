@@ -4,7 +4,6 @@ from typing import Optional, Annotated
 from app.schemas.chat_session_thread import ThreadResponse, ThreadListResponse
 from app.api.v1.deps import verify_api_key
 from app.services.chat.thread_manager import ThreadManager
-from app.models.mongodb.chat_session import ChatSession
 
 router = APIRouter(prefix="", tags=["Chat Session Threads"])
 
@@ -164,13 +163,15 @@ async def resolve_thread_for_message(
 @router.post("/sessions/{session_id}/close_thread")
 async def close_session_thread(
     session_id: str,
-    thread_id: Annotated[Optional[str], Query(description="Specific thread ID to close, if empty closes latest")] = None,
+    thread_id: Annotated[
+        Optional[str], Query(description="Specific thread ID to close, if empty closes latest")
+    ] = None,
     api_key: str = Depends(verify_api_key),
 ):
     """
     Close (deactivate) a thread for a session. If thread_id is not provided, closes the latest active thread.
     This ensures there's never more than one active thread per session unnecessarily.
-    
+
     Closed threads can still be viewed in history but won't be used for new messages.
     """
     try:
@@ -183,7 +184,7 @@ async def close_session_thread(
             )
 
         result = ThreadManager.close_thread(session_id, thread_id)
-        
+
         if result:
             return {"status": "success", "message": "Thread closed successfully"}
         else:

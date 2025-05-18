@@ -17,9 +17,9 @@ async def create_message(message_data: ChatMessageCreate):
     suggestion_mode = message_data.config.suggestion_mode
 
     if ai_enabled and not suggestion_mode:
-        trigger_chat_workflow(message_id=str(chat_message.id), session_id=message_data.session_id)
+        trigger_chat_workflow(message_id=str(chat_message.id), session_id=chat_message.session_id)
     elif not ai_enabled and suggestion_mode:
-        trigger_suggestion_workflow(message_id=str(chat_message.id), session_id=message_data.session_id)
+        trigger_suggestion_workflow(message_id=str(chat_message.id), session_id=chat_message.session_id)
 
     return chat_message
 
@@ -40,5 +40,5 @@ async def update_message(message_id: str, message_data: ChatMessageCreate):
 async def create_bulk_messages(bulk_message_data: BulkChatMessageCreate):
     chat_message_bulk_create_response = ChatMessageService.create_bulk_chat_messages(bulk_message_data)
     latest_message = max(chat_message_bulk_create_response, key=lambda x: x.created_at)
-    trigger_chat_workflow(message_id=str(latest_message.id))
+    trigger_chat_workflow(message_id=str(latest_message.id), session_id=latest_message.session_id)
     return chat_message_bulk_create_response
