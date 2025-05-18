@@ -7,8 +7,10 @@ from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message import ChatMessage
 from app.schemas.chat_session import ChatSessionResponse, ChatSessionListResponse
 from app.api.v1.deps import verify_api_key
+from app.utils.logger import get_logger
 
 router = APIRouter(prefix="", tags=["Chat Sessions"])
+logger = get_logger(__name__)
 
 
 @router.post("/sessions", response_model=dict)
@@ -65,9 +67,9 @@ async def list_chat_sessions(
 
         # Add date range filters
         if start_date:
-            query_filter["created_at__gte"] = start_date
+            query_filter["updated_at__gte"] = start_date
         if end_date:
-            query_filter["created_at__lte"] = end_date
+            query_filter["updated_at__lte"] = end_date
 
         if user_id:
             unique_sessions = ChatMessage.objects.filter(sender=user_id).distinct("session")
@@ -77,6 +79,7 @@ async def list_chat_sessions(
             else:
                 return ChatSessionListResponse(sessions=[], total=0)
 
+        logger.info(f"Query filter: {query_filter}")
         # Get total count for pagination metadata
         total = ChatSession.objects.filter(**query_filter).count()
 
