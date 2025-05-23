@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import Literal
+from typing import Optional
+from datetime import datetime
 
 from app.services.analytics import AnalyticsService
 from app.schemas.analytics import (
@@ -18,26 +19,32 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 @router.get("/dashboard", response_model=DashboardMetricsResponse)
 async def get_dashboard_metrics(
-    time_period: Literal["24h", "7d", "30d"] = Query(..., description="Time period for metrics: 24h, 7d, or 30d"),
+    start_time: datetime = Query(..., description="Start date and time (UTC) for metrics."),
+    end_time: Optional[datetime] = Query(None, description="End date and time (UTC) for metrics. If not provided, defaults to current time."),
     api_key: str = Depends(verify_api_key)
 ) -> DashboardMetricsResponse:
     """
-    Get dashboard analytics metrics for the specified time period.
+    Get dashboard analytics metrics for the specified time range.
     
-    - **time_period**: Time period for which to fetch metrics. Valid values are 24h, 7d, or 30d.
+    - **start_time**: Start date and time (UTC) for metrics.
+    - **end_time**: End date and time (UTC) for metrics. If not provided, defaults to current time.
     
     Returns dashboard metrics including:
     - Total conversations
     - Handoff rate (percentage of conversations escalated to human)
     - Containment rate (percentage of conversations handled by bot)
-    - Conversations by time (hourly for 24h, daily for 7d/30d)
+    - Conversations by time (hourly for short ranges, daily for longer ranges)
     """
     try:
-        logger.info(f"Fetching dashboard metrics for time period: {time_period}")
-        metrics_data = AnalyticsService.get_dashboard_metrics(time_period)
+        logger.info(f"Fetching dashboard metrics for time range: {start_time} to {end_time or 'now'}")
+            
+        metrics_data = AnalyticsService.get_dashboard_metrics(
+            start_date=start_time, 
+            end_date=end_time
+        )
         return DashboardMetricsResponse(success=True, data=metrics_data.model_dump())
     except ValueError as e:
-        logger.error(f"Invalid time period: {time_period}")
+        logger.error(f"Invalid parameters: {str(e)}")
         return DashboardMetricsResponse(success=False, error=str(e))
     except Exception as e:
         logger.exception(f"Error calculating dashboard metrics: {str(e)}")
@@ -46,13 +53,15 @@ async def get_dashboard_metrics(
 
 @router.get("/bot-engagement", response_model=BotEngagementMetricsResponse)
 async def get_bot_engagement_metrics(
-    time_period: Literal["24h", "7d", "30d"] = Query(..., description="Time period for metrics: 24h, 7d, or 30d"),
+    start_time: datetime = Query(..., description="Start date and time (UTC) for metrics."),
+    end_time: Optional[datetime] = Query(None, description="End date and time (UTC) for metrics. If not provided, defaults to current time."),
     api_key: str = Depends(verify_api_key)
 ) -> BotEngagementMetricsResponse:
     """
-    Get bot engagement metrics for the specified time period.
+    Get bot engagement metrics for the specified time range.
     
-    - **time_period**: Time period for which to fetch metrics. Valid values are 24h, 7d, or 30d.
+    - **start_time**: Start date and time (UTC) for metrics.
+    - **end_time**: End date and time (UTC) for metrics. If not provided, defaults to current time.
     
     Returns bot engagement metrics including:
     - Average session duration (in seconds)
@@ -61,11 +70,15 @@ async def get_bot_engagement_metrics(
     - First response time (in seconds)
     """
     try:
-        logger.info(f"Fetching bot engagement metrics for time period: {time_period}")
-        metrics_data = AnalyticsService.get_bot_engagement_metrics(time_period)
+        logger.info(f"Fetching bot engagement metrics for time range: {start_time} to {end_time or 'now'}")
+            
+        metrics_data = AnalyticsService.get_bot_engagement_metrics(
+            start_date=start_time, 
+            end_date=end_time
+        )
         return BotEngagementMetricsResponse(success=True, data=metrics_data.model_dump())
     except ValueError as e:
-        logger.error(f"Invalid time period: {time_period}")
+        logger.error(f"Invalid parameters: {str(e)}")
         return BotEngagementMetricsResponse(success=False, error=str(e))
     except Exception as e:
         logger.exception(f"Error calculating bot engagement metrics: {str(e)}")

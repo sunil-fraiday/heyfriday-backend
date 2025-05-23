@@ -22,41 +22,36 @@ class AnalyticsService:
     """Service for calculating analytics metrics"""
 
     @staticmethod
-    def _get_time_range(time_period: str) -> Tuple[datetime, datetime]:
+    def _get_time_range(start_date: datetime, end_date: Optional[datetime] = None) -> Tuple[datetime, datetime]:
         """
-        Get start and end datetime objects based on the time period.
+        Get start and end datetime objects based on the provided dates.
         
         Args:
-            time_period: One of '24h', '7d', or '30d'
+            start_date: Start datetime (UTC) for the time range.
+            end_date: End datetime (UTC) for the time range. If not provided, defaults to current time.
             
         Returns:
             Tuple of (start_datetime, end_datetime)
         """
         now = datetime.now(timezone.utc)
         
-        if time_period == "24h":
-            start_time = now - timedelta(hours=24)
-        elif time_period == "7d":
-            start_time = now - timedelta(days=7)
-        elif time_period == "30d":
-            start_time = now - timedelta(days=30)
-        else:
-            raise ValueError(f"Invalid time period: {time_period}. Valid values are '24h', '7d', or '30d'")
-            
-        return start_time, now
+        # If end_date not provided, use current time
+        actual_end_date = end_date if end_date is not None else now
+        return start_date, actual_end_date
 
     @staticmethod
-    def get_dashboard_metrics(time_period: str) -> DashboardMetricsData:
+    def get_dashboard_metrics(start_date: datetime, end_date: Optional[datetime] = None) -> DashboardMetricsData:
         """
-        Calculate dashboard metrics for the specified time period.
+        Calculate dashboard metrics for the specified time range.
         
         Args:
-            time_period: One of '24h', '7d', or '30d'
+            start_date: Start datetime (UTC) for the time range.
+            end_date: End datetime (UTC) for the time range. If not provided, defaults to current time.
             
         Returns:
             DashboardMetricsData object with calculated metrics
         """
-        start_time, end_time = AnalyticsService._get_time_range(time_period)
+        start_time, end_time = AnalyticsService._get_time_range(start_date, end_date)
         
         # Get total conversations in the time period
         total_conversations = ChatSession.objects(
@@ -77,10 +72,10 @@ class AnalyticsService:
         containment_rate = 100 - handoff_rate
         
         # Get conversations by time
-        conversations_by_time = AnalyticsService._get_conversations_by_time(time_period, start_time, end_time)
+        conversations_by_time = AnalyticsService._get_conversations_by_time(start_time, end_time)
         
         # Get sessions by hour
-        sessions_by_hour = AnalyticsService._get_sessions_by_hour(time_period, start_time, end_time)
+        sessions_by_hour = AnalyticsService._get_sessions_by_hour(start_time, end_time)
         
         return DashboardMetricsData(
             total_conversations=total_conversations,
@@ -92,12 +87,11 @@ class AnalyticsService:
         )
 
     @staticmethod
-    def _get_conversations_by_time(time_period: str, start_time: datetime, end_time: datetime) -> List[TimeSeriesDataPoint]:
+    def _get_conversations_by_time(start_time: datetime, end_time: datetime) -> List[TimeSeriesDataPoint]:
         """
         Get conversation counts grouped by time periods.
         
         Args:
-            time_period: One of '24h', '7d', or '30d'
             start_time: Start datetime for the query
             end_time: End datetime for the query
             
@@ -106,12 +100,32 @@ class AnalyticsService:
         """
         result = []
         
-        if time_period == "24h":
-            # Group by hour for 24h period
-            for hour in range(24):
-                # Calculate the hour boundaries in UTC
-                hour_start = end_time.replace(minute=0, second=0, microsecond=0) - timedelta(hours=24-hour)
+        # Calculate the time delta between start and end
+        time_delta = end_time - start_time
+        time_delta_hours = time_delta.total_seconds() / 3600
+        
+        # Decide grouping based on the time range
+        # For ranges less than 48 hours, group by hour
+        # For ranges between 2 days and 60 days, group by day
+        # For longer ranges, group by week or month (future enhancement)
+        
+        if time_delta_hours <= 48:
+            # Group by hour
+            # Calculate the number of complete hours in the range
+            num_hours = int(time_delta_hours) + 1  # Add 1 to include partial hour
+            
+            # Limit to a reasonable number of data points
+            if num_hours > 48:
+                num_hours = 48
+                
+            for hour in range(num_hours):
+                # Calculate hour boundaries in UTC
+                hour_start = end_time.replace(minute=0, second=0, microsecond=0) - timedelta(hours=num_hours-hour)
                 hour_end = hour_start + timedelta(hours=1)
+                
+                # Ensure we don't go before the actual start time
+                if hour_start < start_time:
+                    hour_start = start_time
                 
                 # Format as "H:00" in UTC
                 hour_label = f"{hour_start.hour}:00"
@@ -127,13 +141,27 @@ class AnalyticsService:
                 # Log for debugging
                 logger.debug(f"Hour {hour_label}: {hour_start} to {hour_end}, count: {count}")
         else:
-            # Group by day for 7d or 30d periods
-            days = 7 if time_period == "7d" else 30
+            # Group by day
+            # Calculate the number of days in the range
+            days_delta = (end_time.date() - start_time.date()).days + 1  # Add 1 to include partial day
             
-            for day in range(days):
+            # Limit to a reasonable number of data points (cap at 90 days)
+            if days_delta > 90:
+                days_delta = 90
+            
+            for day in range(days_delta):
                 # Calculate day boundaries in UTC
                 day_start = (start_time + timedelta(days=day)).replace(hour=0, minute=0, second=0, microsecond=0)
-                day_end = day_start + timedelta(days=1)
+                
+                # Ensure we don't start before the actual start time
+                if day == 0 and day_start < start_time:
+                    day_start = start_time
+                    
+                day_end = (day_start + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                
+                # Ensure we don't go past the end time
+                if day_end > end_time:
+                    day_end = end_time
                 
                 # Format as "YYYY-MM-DD"
                 day_label = day_start.strftime("%Y-%m-%d")
@@ -152,12 +180,11 @@ class AnalyticsService:
         return result
 
     @staticmethod
-    def _get_sessions_by_hour(time_period: str, start_time: datetime, end_time: datetime) -> List[HourlySessionDataPoint]:
+    def _get_sessions_by_hour(start_time: datetime, end_time: datetime) -> List[HourlySessionDataPoint]:
         """
         Get session counts grouped by hour of day (00-23), aggregated across all days.
         
         Args:
-            time_period: One of '24h', '7d', or '30d'
             start_time: Start datetime for the query
             end_time: End datetime for the query
             
@@ -191,17 +218,18 @@ class AnalyticsService:
         return result
 
     @staticmethod
-    def get_bot_engagement_metrics(time_period: str) -> BotEngagementMetricsData:
+    def get_bot_engagement_metrics(start_date: datetime, end_date: Optional[datetime] = None) -> BotEngagementMetricsData:
         """
-        Calculate bot engagement metrics for the specified time period.
+        Calculate bot engagement metrics for the specified time range.
         
         Args:
-            time_period: One of '24h', '7d', or '30d'
+            start_date: Start datetime (UTC) for the time range.
+            end_date: End datetime (UTC) for the time range. If not provided, defaults to current time.
             
         Returns:
             BotEngagementMetricsData object with calculated metrics
         """
-        start_time, end_time = AnalyticsService._get_time_range(time_period)
+        start_time, end_time = AnalyticsService._get_time_range(start_date, end_date)
         
         # Get chat sessions in the time period
         chat_sessions = ChatSession.objects(
