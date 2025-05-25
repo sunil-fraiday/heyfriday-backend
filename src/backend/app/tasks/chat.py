@@ -1,5 +1,4 @@
 import requests
-from requests import Response
 from requests.exceptions import RequestException
 import traceback
 
@@ -7,14 +6,12 @@ from celery import shared_task, chain
 from celery.utils.log import get_task_logger
 
 import app.constants as constants
-from app.core.config import settings
 from app.db.mongodb_utils import connect_to_db
 from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
-from app.schemas.chat import ChatMessageCreate, AttachmentCreate
-from app.models.mongodb.chat_message import ChatMessage, SenderType, MessageCategory
+from app.schemas.chat import ChatMessageCreate
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message_suggestion import ChatMessageSuggestion
-from app.models.mongodb.channel_request_log import ChannelRequestLog, EntityType
+from app.models.mongodb.channel_request_log import EntityType, ChannelRequestLog
 from app.services.ai_service import AIService
 from app.services.chat.utils import create_system_chat_message
 from app.services.webhook.payload import PayloadService
@@ -26,8 +23,8 @@ logger = get_task_logger(__name__)
 
 connect_to_db()
 
-
-AI_SERVICE_ERROR_MESSAGE = """
+# Default error message if client has no custom message configured
+DEFAULT_AI_SERVICE_ERROR_MESSAGE = """
 🤖 We're sorry!
 We couldn't generate a response to your message.
 Please try rephrasing your message and try again.
@@ -158,9 +155,25 @@ def generate_ai_response_task(self, session_data: dict):
         logger.info(f"Creating system error message on session data {session_data}")
         session_id_filter = get_session_id_filter(session_data["session_id"])
         session = ChatSession.objects(session_id_filter).first()
+        
+        # Get client's custom error message if available
+        custom_error_message = DEFAULT_AI_SERVICE_ERROR_MESSAGE
+        if session and session.client:
+            try:
+                client = session.client
+                if client.chat_config and 'error_message' in client.chat_config:
+                    custom_error_message = client.chat_config['error_message']
+                else:
+                    # If client has no chat_config or no error_message in it, use default
+                    if not client.chat_config:
+                        client.chat_config = {}
+                    logger.info(f"Using default error message for client {client.client_id}")
+            except Exception as e:
+                logger.error(f"Error getting client error message: {e}")
+        
         error_message = create_system_chat_message(
             session=session,
-            error_message=AI_SERVICE_ERROR_MESSAGE,
+            error_message=custom_error_message,
             message_category=MessageCategory.ERROR,
         )
 

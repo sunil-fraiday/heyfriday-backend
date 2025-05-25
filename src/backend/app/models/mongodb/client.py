@@ -28,6 +28,9 @@ class Client(BaseDocument):
     
     # Thread configuration settings
     thread_config = fields.DictField(required=False, default=None)
+    
+    # Chat configuration settings
+    chat_config = fields.DictField(required=False, default=dict)
 
     is_active = fields.BooleanField(default=True)
 
