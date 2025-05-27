@@ -33,7 +33,7 @@ class AIService:
                             "user_id": str(chat_message.sender),
                             "human_msg": chat_message.text,
                             "session_id": str(chat_message.session.session_id),
-                            "metadata": chat_message.data
+                            "metadata": json.dumps(chat_message.data)
                         },
                     },
                     headers={"Authorization": f"Basic {settings.SLACK_AI_TOKEN}"},
