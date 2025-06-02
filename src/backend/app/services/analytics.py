@@ -59,17 +59,32 @@ class AnalyticsService:
             created_at__lte=end_time
         ).count()
         
-        # Get handoff events
-        handoff_events = Event.objects(
-            event_type=EventType.CHAT_WORKFLOW_HANDOVER.value,
-            created_at__gte=start_time,
-            created_at__lte=end_time
-        )
+        # Use MongoDB aggregation pipeline to count unique parent_ids efficiently
+        # This avoids loading all distinct values into application memory
+        try:
+            pipeline_result = Event._get_collection().aggregate([
+                {"$match": {
+                    "event_type": EventType.CHAT_WORKFLOW_HANDOVER.value,
+                    "created_at": {"$gte": start_time, "$lte": end_time},
+                    "parent_id": {"$exists": True}
+                }},
+                {"$group": {"_id": "$parent_id"}},
+                {"$count": "count"}
+            ])
+            
+            # Get the count from the pipeline result
+            result_doc = next(pipeline_result, {"count": 0})
+            unique_sessions_with_handovers = result_doc.get("count", 0)
+        except Exception as e:
+            logger.error(f"Error in aggregation pipeline: {e}")
+            unique_sessions_with_handovers = 0
         
-        # Calculate handoff and containment rates
-        handoff_count = handoff_events.count()
-        handoff_rate = (handoff_count / total_conversations * 100) if total_conversations > 0 else 0
+        # Calculate handoff and containment rates based on unique sessions with handovers
+        handoff_rate = (unique_sessions_with_handovers / total_conversations * 100) if total_conversations > 0 else 0
         containment_rate = 100 - handoff_rate
+        
+        # Log for debugging
+        logger.debug(f"Total conversations: {total_conversations}, Unique sessions with handovers: {unique_sessions_with_handovers}")
         
         # Get conversations by time
         conversations_by_time = AnalyticsService._get_conversations_by_time(start_time, end_time)
