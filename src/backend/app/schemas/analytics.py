@@ -27,6 +27,25 @@ class MessageDistributionDataPoint(BaseModel):
     sessions: int = Field(..., description="Number of sessions with this message count range")
 
 
+class ContainmentRateDataPoint(BaseModel):
+    """Data point for containment rate over time"""
+    time: str = Field(..., description="ISO 8601 timestamp in UTC")
+    time_label: str = Field(..., description="Human-readable time label")
+    value: float = Field(..., description="Containment rate percentage (0-100)")
+    unit: str = Field("percent", description="Unit of measurement")
+
+
+class ContainmentRateResponse(BaseModel):
+    """Response model for containment rate analytics"""
+    success: bool = True
+    data: Optional[list] = None
+    error: Optional[str] = None
+    metadata: Optional[dict] = Field(
+        None,
+        description="Metadata about the response including time range and aggregation"
+    )
+
+
 class DashboardMetricsResponse(BaseModel):
     """Response model for dashboard analytics metrics"""
     success: bool = True

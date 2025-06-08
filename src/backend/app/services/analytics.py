@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Dict, List, Tuple, Optional
+from concurrent.futures import ThreadPoolExecutor
 
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message import ChatMessage, SenderType
@@ -193,6 +194,159 @@ class AnalyticsService:
                 logger.debug(f"Day {day_label}: {day_start} to {day_end}, count: {count}")
                 
         return result
+
+    @staticmethod
+    def get_containment_rate_metrics(
+        start_date: datetime,
+        end_date: Optional[datetime] = None,
+        aggregation: str = "auto"
+    ) -> Dict:
+        """
+        Calculate containment rate metrics for the specified time range.
+        
+        Args:
+            start_date: Start datetime (UTC) for the time range.
+            end_date: End datetime (UTC) for the time range. If not provided, defaults to current time.
+            aggregation: Time aggregation level ("auto", "hour", "day", "week", "month")
+            
+        Returns:
+            Dictionary containing containment rate data points and metadata
+        """
+        start_time, end_time = AnalyticsService._get_time_range(start_date, end_date)
+        time_delta = end_time - start_time
+        time_delta_hours = time_delta.total_seconds() / 3600
+        
+        # Determine the appropriate aggregation level
+        if aggregation == "auto":
+            if time_delta_hours <= 48:
+                aggregation = "hour"
+            elif time_delta_hours <= 14 * 24:  # 14 days
+                aggregation = "day"
+            elif time_delta_hours <= 60 * 24:  # 60 days
+                aggregation = "week"
+            else:
+                aggregation = "month"
+        
+        # Get total conversations per time period
+        pipeline = [
+            {
+                "$match": {
+                    "created_at": {"$gte": start_time, "$lte": end_time}
+                }
+            },
+            {
+                "$project": {
+                    "time_bucket": {
+                        "$dateTrunc": {
+                            "date": "$created_at",
+                            "unit": aggregation
+                        }
+                    },
+                    "session_id": "$_id"
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$time_bucket",
+                    "total_sessions": {"$sum": 1},
+                    "session_ids": {"$addToSet": "$_id"}
+                }
+            },
+            {
+                "$sort": {"_id": 1}
+            }
+        ]
+        
+        # Get handover events for the same time periods
+        handover_pipeline = [
+            {
+                "$match": {
+                    "event_type": EventType.CHAT_WORKFLOW_HANDOVER.value,
+                    "created_at": {"$gte": start_time, "$lte": end_time},
+                    "parent_id": {"$exists": True}
+                }
+            },
+            {
+                "$project": {
+                    "time_bucket": {
+                        "$dateTrunc": {
+                            "date": "$created_at",
+                            "unit": aggregation
+                        }
+                    },
+                    "session_id": "$parent_id"
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$time_bucket",
+                    "handover_sessions": {"$addToSet": "$session_id"}
+                }
+            }
+        ]
+        
+        try:
+            # Execute both pipelines in parallel
+            with ThreadPoolExecutor() as executor:
+                sessions_future = executor.submit(
+                    lambda: list(ChatSession._get_collection().aggregate(pipeline))
+                )
+                handovers_future = executor.submit(
+                    lambda: list(Event._get_collection().aggregate(handover_pipeline))
+                )
+                
+                sessions_by_time = sessions_future.result()
+                handovers_by_time = {
+                    item["_id"]: set(str(sid) for sid in item["handover_sessions"])
+                    for item in handovers_future.result()
+                }
+            
+            # Process results
+            data_points = []
+            for period in sessions_by_time:
+                time_bucket = period["_id"]
+                total_sessions = period["total_sessions"]
+                session_ids = set(str(id) for id in period.get("session_ids", []))
+                handover_sessions = handovers_by_time.get(time_bucket, set())
+                
+                # Calculate containment rate
+                contained_sessions = session_ids - handover_sessions
+                containment_rate = (len(contained_sessions) / total_sessions * 100) if total_sessions > 0 else 0
+                
+                # Format time label based on aggregation
+                if aggregation == "hour":
+                    time_label = time_bucket.strftime("%Y-%m-%d %H:%M")
+                elif aggregation == "day":
+                    time_label = time_bucket.strftime("%Y-%m-%d")
+                elif aggregation == "week":
+                    # Show start of week (Monday)
+                    time_label = f"Week of {time_bucket.strftime('%Y-%m-%d')}"
+                else:  # month
+                    time_label = time_bucket.strftime("%Y-%m")
+                
+                data_points.append({
+                    "time": time_bucket.isoformat() + "Z",
+                    "time_label": time_label,
+                    "value": round(containment_rate, 2),
+                    "unit": "percent"
+                })
+            
+            return {
+                "data": data_points,
+                "metadata": {
+                    "time_range": {
+                        "start": start_time.isoformat() + "Z",
+                        "end": end_time.isoformat() + "Z"
+                    },
+                    "aggregation": aggregation,
+                    "total_data_points": len(data_points),
+                    "max_data_points": 30
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating containment rate metrics: {str(e)}")
+            raise
 
     @staticmethod
     def _get_sessions_by_hour(start_time: datetime, end_time: datetime) -> List[HourlySessionDataPoint]:
