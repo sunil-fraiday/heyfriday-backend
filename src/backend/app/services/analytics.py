@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta, timezone
-import logging
-from typing import Dict, List, Tuple, Optional
-from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Optional, Tuple
 
 from app.models.mongodb.chat_session import ChatSession
 from app.models.mongodb.chat_message import ChatMessage, SenderType
 from app.models.mongodb.events.event import Event
 from app.models.mongodb.events.event_types import EventType
+from app.utils.logger import get_logger
 from app.schemas.analytics import (
     DashboardMetricsData,
     BotEngagementMetricsData,
@@ -16,7 +15,7 @@ from app.schemas.analytics import (
     MessageDistributionDataPoint,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AnalyticsService:
@@ -84,8 +83,8 @@ class AnalyticsService:
         handoff_rate = (unique_sessions_with_handovers / total_conversations * 100) if total_conversations > 0 else 0
         containment_rate = 100 - handoff_rate
         
-        # Log for debugging
-        logger.debug(f"Total conversations: {total_conversations}, Unique sessions with handovers: {unique_sessions_with_handovers}")
+        # Log for infoging
+        logger.info(f"Total conversations: {total_conversations}, Unique sessions with handovers: {unique_sessions_with_handovers}")
         
         # Get conversations by time
         conversations_by_time = AnalyticsService._get_conversations_by_time(start_time, end_time)
@@ -227,87 +226,267 @@ class AnalyticsService:
             else:
                 aggregation = "month"
         
-        # Get total conversations per time period
-        pipeline = [
-            {
-                "$match": {
-                    "created_at": {"$gte": start_time, "$lte": end_time}
-                }
-            },
-            {
-                "$project": {
-                    "time_bucket": {
-                        "$dateTrunc": {
-                            "date": "$created_at",
-                            "unit": aggregation
-                        }
-                    },
-                    "session_id": "$_id"
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$time_bucket",
-                    "total_sessions": {"$sum": 1},
-                    "session_ids": {"$addToSet": "$_id"}
-                }
-            },
-            {
-                "$sort": {"_id": 1}
-            }
-        ]
-        
-        # Get handover events for the same time periods
-        handover_pipeline = [
-            {
-                "$match": {
-                    "event_type": EventType.CHAT_WORKFLOW_HANDOVER.value,
-                    "created_at": {"$gte": start_time, "$lte": end_time},
-                    "parent_id": {"$exists": True}
-                }
-            },
-            {
-                "$project": {
-                    "time_bucket": {
-                        "$dateTrunc": {
-                            "date": "$created_at",
-                            "unit": aggregation
-                        }
-                    },
-                    "session_id": "$parent_id"
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$time_bucket",
-                    "handover_sessions": {"$addToSet": "$session_id"}
-                }
-            }
-        ]
-        
         try:
-            # Execute both pipelines in parallel
-            with ThreadPoolExecutor() as executor:
-                sessions_future = executor.submit(
-                    lambda: list(ChatSession._get_collection().aggregate(pipeline))
-                )
-                handovers_future = executor.submit(
-                    lambda: list(Event._get_collection().aggregate(handover_pipeline))
-                )
+            # Ensure we have timezone-aware datetimes
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
                 
-                sessions_by_time = sessions_future.result()
-                handovers_by_time = {
-                    item["_id"]: set(str(sid) for sid in item["handover_sessions"])
-                    for item in handovers_future.result()
+            # Convert to UTC and make naive for MongoDB
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
+            end_time_utc = end_time.astimezone(timezone.utc).replace(tzinfo=None)
+            
+            # Function to truncate datetime to the start of the period
+            def truncate_dt(dt, period):
+                dt = dt.replace(second=0, microsecond=0)
+                if period == "hour":
+                    return dt.replace(minute=0)
+                elif period == "day":
+                    return dt.replace(hour=0, minute=0)
+                elif period == "week":
+                    # Monday as start of week (weekday 0 is Monday in Python)
+                    return (dt.replace(hour=0, minute=0) - timedelta(days=dt.weekday()))
+                else:  # month
+                    return dt.replace(day=1, hour=0, minute=0)
+            
+            # Initialize current to start of period
+            current = truncate_dt(start_time_utc, aggregation)
+            time_buckets = []
+            
+            logger.info(f"Generating time buckets from {current} to {end_time_utc} with {aggregation} aggregation")
+            
+            # Generate all time buckets in the range
+            while current <= end_time_utc:
+                time_buckets.append(current)
+                
+                if aggregation == "hour":
+                    current += timedelta(hours=1)
+                elif aggregation == "day":
+                    current += timedelta(days=1)
+                elif aggregation == "week":
+                    current += timedelta(weeks=1)
+                else:  # month
+                    # Move to first day of next month
+                    if current.month == 12:
+                        current = current.replace(year=current.year + 1, month=1, day=1)
+                    else:
+                        current = current.replace(month=current.month + 1, day=1)
+                
+                # Safety check to prevent infinite loops
+                if len(time_buckets) > 1000:
+                    logger.warning("Reached maximum number of time buckets (1000)")
+                    break
+            
+            if not time_buckets:
+                return {
+                    "data": [],
+                    "metadata": {
+                        "time_range": {
+                            "start": start_time.isoformat() + "Z",
+                            "end": end_time.isoformat() + "Z"
+                        },
+                        "aggregation": aggregation,
+                        "total_data_points": 0,
+                        "max_data_points": 0
+                    }
                 }
             
-            # Process results
+            # Build match conditions for sessions and handovers
+            session_match = {
+                "created_at": {"$gte": start_time, "$lte": end_time}
+            }
+            
+            handover_match = {
+                "event_type": EventType.CHAT_WORKFLOW_HANDOVER.value,
+                "created_at": {"$gte": start_time, "$lte": end_time},
+                "parent_id": {"$exists": True}
+            }
+            
+            # Initialize data storage for all chunks
+            all_sessions = {}
+            all_handovers = {}
+            
+            # For large date ranges, process in chunks to avoid memory issues
+            chunk_size = 30  # Process 30 days at a time
+            
+            for i in range(0, len(time_buckets), chunk_size):
+                chunk = time_buckets[i:i + chunk_size]
+                chunk_start = chunk[0]
+                chunk_end = chunk[-1] + (
+                    timedelta(hours=23, minutes=59, seconds=59) if aggregation == "hour" else
+                    timedelta(days=1) - timedelta(seconds=1) if aggregation == "day" else
+                    timedelta(weeks=1) - timedelta(seconds=1) if aggregation == "week" else
+                    timedelta(days=32)  # Approximate month
+                )
+                
+                # Ensure chunk times are in UTC for MongoDB query
+                if chunk_start.tzinfo is not None:
+                    chunk_start = chunk_start.astimezone(timezone.utc).replace(tzinfo=None)
+                if chunk_end.tzinfo is not None:
+                    chunk_end = chunk_end.astimezone(timezone.utc).replace(tzinfo=None)
+                
+                logger.info(f"Processing chunk {i}: {chunk_start} to {chunk_end}")
+                
+                # Update match conditions for current chunk
+                chunk_session_match = {"$and": [
+                    session_match,
+                    {"created_at": {"$gte": chunk_start, "$lte": chunk_end}}
+                ]}
+                
+                chunk_handover_match = {"$and": [
+                    handover_match,
+                    {"created_at": {"$gte": chunk_start, "$lte": chunk_end}}
+                ]}
+                
+                # Get session counts for current chunk
+                session_pipeline = [
+                    {"$match": chunk_session_match},
+                    {"$group": {
+                        "_id": {
+                            "$dateTrunc": {
+                                "date": "$created_at",
+                                "unit": aggregation
+                            }
+                        },
+                        "total_sessions": {"$sum": 1},
+                        "session_ids": {"$addToSet": "$_id"}
+                    }}
+                ]
+                
+                # Get handover counts for current chunk
+                handover_pipeline = [
+                    {"$match": chunk_handover_match},
+                    {"$group": {
+                        "_id": {
+                            "$dateTrunc": {
+                                "date": "$created_at",
+                                "unit": aggregation
+                            }
+                        },
+                        "handover_sessions": {"$addToSet": "$parent_id"}
+                    }}
+                ]
+                
+                # Execute queries for current chunk
+                # Get session data
+                sessions_result = list(ChatSession._get_collection().aggregate(session_pipeline))
+                # Get handover data
+                handovers_result = list(Event._get_collection().aggregate(handover_pipeline))
+                
+                # Map session data to time buckets with proper timezone handling
+                session_data = {}
+                for session_bucket in sessions_result:
+                    bucket_time = session_bucket['_id']
+                    
+                    # Ensure bucket_time is timezone-naive for comparison
+                    if hasattr(bucket_time, 'tzinfo') and bucket_time.tzinfo is not None:
+                        bucket_time = bucket_time.replace(tzinfo=None)
+                    
+                    # Find the matching time bucket
+                    for time_bucket in time_buckets:
+                        # Ensure time_bucket is timezone-naive for comparison
+                        time_bucket_naive = time_bucket.replace(tzinfo=None) if hasattr(time_bucket, 'tzinfo') else time_bucket
+                        
+                        # For week aggregation, handle the start of week properly
+                        if aggregation == 'week':
+                            # Get the start of the week for both times
+                            bucket_week_start = (bucket_time - timedelta(days=bucket_time.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+                            time_bucket_week_start = (time_bucket_naive - timedelta(days=time_bucket_naive.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+                            
+                            if bucket_week_start == time_bucket_week_start:
+                                if time_bucket not in session_data:
+                                    session_data[time_bucket] = {
+                                        'total_sessions': 0,
+                                        'session_ids': set()
+                                    }
+                                session_data[time_bucket]['total_sessions'] += session_bucket.get('total_sessions', 0)
+                                session_data[time_bucket]['session_ids'].update(
+                                    str(sid) for sid in session_bucket.get('session_ids', [])
+                                )
+                                break
+                        else:
+                            # For other aggregation levels, do direct comparison
+                            if bucket_time == time_bucket_naive:
+                                if time_bucket not in session_data:
+                                    session_data[time_bucket] = {
+                                        'total_sessions': 0,
+                                        'session_ids': set()
+                                    }
+                                session_data[time_bucket]['total_sessions'] += session_bucket.get('total_sessions', 0)
+                                session_data[time_bucket]['session_ids'].update(
+                                    str(sid) for sid in session_bucket.get('session_ids', [])
+                                )
+                                break
+                    
+                # Map handover data to time buckets with proper timezone handling
+                handover_data = {}
+                for handover_bucket in handovers_result:
+                    bucket_time = handover_bucket['_id']
+                    
+                    # Ensure bucket_time is timezone-naive for comparison
+                    if hasattr(bucket_time, 'tzinfo') and bucket_time.tzinfo is not None:
+                        bucket_time = bucket_time.replace(tzinfo=None)
+                    
+                    # Find the matching time bucket
+                    for time_bucket in time_buckets:
+                        # Ensure time_bucket is timezone-naive for comparison
+                        time_bucket_naive = time_bucket.replace(tzinfo=None) if hasattr(time_bucket, 'tzinfo') else time_bucket
+                        
+                        # For week aggregation, handle the start of week properly
+                        if aggregation == 'week':
+                            # Get the start of the week for both times
+                            bucket_week_start = (bucket_time - timedelta(days=bucket_time.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+                            time_bucket_week_start = (time_bucket_naive - timedelta(days=time_bucket_naive.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+                            
+                            if bucket_week_start == time_bucket_week_start:
+                                if time_bucket not in handover_data:
+                                    handover_data[time_bucket] = set()
+                                handover_data[time_bucket].update(
+                                    str(sid) for sid in handover_bucket.get('handover_sessions', [])
+                                )
+                                break
+                        else:
+                            # For other aggregation levels, do direct comparison
+                            if bucket_time == time_bucket_naive:
+                                if time_bucket not in handover_data:
+                                    handover_data[time_bucket] = set()
+                                handover_data[time_bucket].update(
+                                    str(sid) for sid in handover_bucket.get('handover_sessions', [])
+                                )
+                                break
+                
+                # Merge handover data into all_handovers
+                for time_bucket, handover_sessions in handover_data.items():
+                    if time_bucket not in all_handovers:
+                        all_handovers[time_bucket] = {"handover_sessions": set()}
+                    all_handovers[time_bucket]["handover_sessions"].update(handover_sessions)
+                
+                # Update all_sessions with session_data
+                for time_bucket, session_info in session_data.items():
+                    if time_bucket not in all_sessions:
+                        all_sessions[time_bucket] = {
+                            "total_sessions": 0,
+                            "session_ids": set()
+                        }
+                    all_sessions[time_bucket]["total_sessions"] += session_info.get('total_sessions', 0)
+                    all_sessions[time_bucket]["session_ids"].update(session_info.get('session_ids', set()))
+            
+            # Prepare the final chunked data structure
+            chunked_data = {
+                "sessions": all_sessions,
+                "handovers": all_handovers
+            }
+            
+            # Generate data points for all time buckets
             data_points = []
-            for period in sessions_by_time:
-                time_bucket = period["_id"]
-                total_sessions = period["total_sessions"]
-                session_ids = set(str(id) for id in period.get("session_ids", []))
-                handover_sessions = handovers_by_time.get(time_bucket, set())
+            for time_bucket in time_buckets:
+                sessions_data = chunked_data["sessions"].get(time_bucket, {"total_sessions": 0, "session_ids": set()})
+                handovers_data = chunked_data["handovers"].get(time_bucket, {"handover_sessions": set()})
+                
+                total_sessions = sessions_data["total_sessions"]
+                session_ids = sessions_data["session_ids"]
+                handover_sessions = handovers_data["handover_sessions"]
                 
                 # Calculate containment rate
                 contained_sessions = session_ids - handover_sessions
