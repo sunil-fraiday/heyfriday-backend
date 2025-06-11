@@ -1,0 +1,52 @@
+name: Sync to Client Repository
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  sync-to-client:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+      - name: Add client remote
+        run: |
+          # Add the client repository as a remote
+          git remote add client-remote ${{ secrets.CLIENT_REPO_URL }}
+          
+      - name: Update client branch
+        run: |
+          # Checkout the client branch that exists in our repo
+          git checkout ${{ secrets.CLIENT_BRANCH_NAME || 'client_branch' }}
+          
+          # Use read-tree to update client branch with content from main
+          git read-tree -u -m main
+          
+          # Stage all changes
+          git add -A
+          
+          # Commit the changes
+          git commit -m "Update latest changes from main" || echo "No changes to commit"
+          
+      - name: Push to client repository
+        run: |
+          # Push the updated client branch to the client repository's main branch
+          git push client-remote ${{ secrets.CLIENT_BRANCH_NAME || 'client_branch' }}:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.CLIENT_REPO_TOKEN }}
