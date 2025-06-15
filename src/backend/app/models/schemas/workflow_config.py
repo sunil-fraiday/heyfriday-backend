@@ -1,0 +1,33 @@
+from typing import Optional
+from datetime import datetime
+from pydantic import BaseModel
+
+
+class WorkflowConfigBase(BaseModel):
+    """Base model for workflow configuration"""
+    workflow_id: str
+    is_active: bool = True
+
+
+class WorkflowConfigCreate(WorkflowConfigBase):
+    """Model for creating a workflow configuration"""
+    client_id: str
+    client_channel_id: Optional[str] = None
+
+
+class WorkflowConfigUpdate(BaseModel):
+    """Model for updating a workflow configuration"""
+    workflow_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WorkflowConfigResponse(WorkflowConfigBase):
+    """Response model for workflow configuration"""
+    id: str
+    client_id: str
+    client_channel_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

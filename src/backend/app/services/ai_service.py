@@ -1,10 +1,8 @@
-import re
 import requests
 import traceback
 import logging
 import json
-from datetime import timedelta
-from typing import List, Dict, Any
+from typing import Dict, Any, Optional
 
 from app.core.config import settings
 from app.schemas.ai_response import AIResponse, AIServiceRequest, Data, Answer
@@ -18,7 +16,7 @@ logger = get_logger(__name__)
 
 class AIService:
 
-    def get_response(self, message_id: str) -> AIResponse:
+    def get_response(self, message_id: str, workflow_id: Optional[str] = None) -> AIResponse:
         try:
             chat_message = self._get_chat_message(message_id=message_id)
             client_channel: ClientChannel = chat_message.session.client_channel
@@ -27,7 +25,7 @@ class AIService:
                 response = requests.post(
                     settings.SLACK_AI_SERVICE_URL,
                     json={
-                        "id": settings.SLACK_AI_SERVICE_WORKFLOW_ID,
+                        "id": workflow_id or settings.SLACK_AI_SERVICE_WORKFLOW_ID,
                         "input_args": {
                             "client_id": chat_message.session.client.client_id,
                             "user_id": str(chat_message.sender),
@@ -39,6 +37,7 @@ class AIService:
                     headers={"Authorization": f"Basic {settings.SLACK_AI_TOKEN}"},
                 )
                 ai_response = response.json()
+                logger.info(f"AI Response: {ai_response}")
 
                 return AIResponse(
                     status=ai_response["status"],
