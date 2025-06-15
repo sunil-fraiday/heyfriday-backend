@@ -10,16 +10,10 @@ from app.models.schemas.workflow_config import (
 )
 from app.services.workflow_config import WorkflowConfigService
 
-router = APIRouter()
+router = APIRouter(prefix="/workflow-configs", tags=["workflow-configs"])
 
 
-class WorkflowConfigListResponse(BaseModel):
-    """Response model for list of workflow configs"""
-    configs: List[WorkflowConfigResponse]
-    total: int
-
-
-@router.post("/", response_model=WorkflowConfigResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=WorkflowConfigResponse, status_code=status.HTTP_201_CREATED)
 async def create_workflow_config(
     config: WorkflowConfigCreate,
     api_key: str = Depends(verify_api_key),
@@ -31,10 +25,20 @@ async def create_workflow_config(
         result = WorkflowConfigService.create_workflow_config(
             client_id=config.client_id,
             workflow_id=config.workflow_id,
+            name=config.name,
             client_channel_id=config.client_channel_id,
             is_active=config.is_active,
         )
-        return result
+        return WorkflowConfigResponse(
+            id=str(result.id),
+            client_id=str(result.client.client_id),
+            client_channel_id=str(result.client_channel.id) if result.client_channel else None,
+            name=result.name,
+            workflow_id=result.workflow_id,
+            is_active=result.is_active,
+            created_at=result.created_at,
+            updated_at=result.updated_at,
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,7 +66,16 @@ async def get_workflow_config(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow config with ID {config_id} not found",
             )
-        return result
+        return WorkflowConfigResponse(
+            id=str(result.id),
+            client_id=str(result.client.client_id),
+            client_channel_id=str(result.client_channel.id) if result.client_channel else None,
+            name=result.name,
+            workflow_id=result.workflow_id,
+            is_active=result.is_active,
+            created_at=result.created_at,
+            updated_at=result.updated_at,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -72,27 +85,33 @@ async def get_workflow_config(
         )
 
 
-@router.get("/", response_model=WorkflowConfigListResponse)
+@router.get("", response_model=List[WorkflowConfigResponse])
 async def list_workflow_configs(
     client_id: Optional[str] = Query(None),
     client_channel_id: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
     api_key: str = Depends(verify_api_key),
 ):
     """
     List workflow configurations with optional filtering.
     """
     try:
-        configs, total = WorkflowConfigService.list_workflow_configs(
+        configs = WorkflowConfigService.list_workflow_configs(
             client_id=client_id,
             client_channel_id=client_channel_id,
-            is_active=is_active,
-            skip=skip,
-            limit=limit,
         )
-        return WorkflowConfigListResponse(configs=configs, total=total)
+        return [
+            WorkflowConfigResponse(
+                id=str(result.id),
+                client_id=str(result.client.client_id),
+                client_channel_id=str(result.client_channel.id) if result.client_channel else None,
+                name=result.name,
+                workflow_id=result.workflow_id,
+                is_active=result.is_active,
+                created_at=result.created_at,
+                updated_at=result.updated_at,
+            )
+            for result in configs
+        ]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -114,13 +133,24 @@ async def update_workflow_config(
             config_id=config_id,
             workflow_id=config_update.workflow_id,
             is_active=config_update.is_active,
+            client_id=config_update.client_id,
+            client_channel_id=config_update.client_channel_id,
         )
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workflow config with ID {config_id} not found",
             )
-        return result
+        return WorkflowConfigResponse(
+            id=str(result.id),
+            client_id=str(result.client.client_id),
+            client_channel_id=str(result.client_channel.id) if result.client_channel else None,
+            name=result.name,
+            workflow_id=result.workflow_id,
+            is_active=result.is_active,
+            created_at=result.created_at,
+            updated_at=result.updated_at,
+        )
     except HTTPException:
         raise
     except ValueError as e:

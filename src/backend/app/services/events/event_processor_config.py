@@ -160,11 +160,10 @@ class ProcessorConfigService:
         If client_channel_id is provided, first look for channel-specific processors,
         then fall back to client-level processors if none are found.
         """
-        from app.core.config import settings
-        
         try:
-            # If client-channel routing is disabled, just use client-level processors
-            if not settings.ENABLE_CLIENT_CHANNEL_ROUTING or not client_channel_id:
+            # If no client_channel_id is provided, just use client-level processors
+            if not client_channel_id:
+                logger.info(f"No channel_id provided. Using client_level processors. client_id {client_id}")
                 processors = EventProcessorConfig.objects(
                     client=client_id, 
                     client_channel=None,
@@ -187,6 +186,7 @@ class ProcessorConfigService:
             if channel_processors:
                 return channel_processors
             
+            logger.info(f"Did not find any channel specific processors for client_channel_id: {client_channel_id} and client_id: {client_id}")
             # Otherwise, fall back to client-level processors
             client_processors = EventProcessorConfig.objects(
                 client=client_id,

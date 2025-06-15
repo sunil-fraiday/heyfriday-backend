@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class WorkflowConfigBase(BaseModel):
     """Base model for workflow configuration"""
     workflow_id: str
+    name: str
     is_active: bool = True
 
 
@@ -18,7 +19,10 @@ class WorkflowConfigCreate(WorkflowConfigBase):
 class WorkflowConfigUpdate(BaseModel):
     """Model for updating a workflow configuration"""
     workflow_id: Optional[str] = None
+    name: Optional[str] = None
     is_active: Optional[bool] = None
+    client_id: Optional[str] = None
+    client_channel_id: Optional[str] = None
 
 
 class WorkflowConfigResponse(WorkflowConfigBase):

@@ -8,6 +8,7 @@ class WorkflowConfig(BaseDocument):
     Configuration for workflow routing based on client and client channel.
     Defines which workflow ID to use for specific clients and channels.
     """
+
     name = fields.StringField(required=True)
     description = fields.StringField()
     client = fields.ReferenceField("Client", required=True)
@@ -21,6 +22,11 @@ class WorkflowConfig(BaseDocument):
             "client",
             "client_channel",
             "is_active",
-            ("client", "client_channel", "is_active"),
+            {
+                "fields": ("client", "client_channel", "is_active"),
+                "unique": True,
+                # Only apply uniqueness when is_active is True to allow multiple inactive processors
+                "sparse": False
+            },
         ],
     }

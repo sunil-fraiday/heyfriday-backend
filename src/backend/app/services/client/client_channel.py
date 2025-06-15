@@ -148,20 +148,19 @@ class ClientChannelService:
                 if "duplicate key error" in error_msg:
                     if "channel_id" in error_msg:
                         raise HTTPException(
-                            status_code=400,
-                            detail="Channel ID is already in use by another channel for this client"
+                            status_code=400, detail="Channel ID is already in use by another channel for this client"
                         )
                     elif "channel_type" in error_msg or "index" in error_msg:
                         raise HTTPException(
                             status_code=400,
                             detail="Update would create a duplicate channel type. Each client can have only one "
-                                  "channel per type unless a unique channel_id is provided."
+                            "channel per type unless a unique channel_id is provided.",
                         )
                     else:
                         raise HTTPException(
                             status_code=400,
                             detail="Update would violate uniqueness constraints. The combination of client, "
-                                  "channel_type, and channel_id must be unique."
+                            "channel_type, and channel_id must be unique.",
                         )
                 raise e
 
@@ -221,15 +220,19 @@ class ClientChannelService:
             # If channel_id is provided, use it for lookup
             if channel_id:
                 try:
-                    channel = ClientChannel.objects.get(client=client, channel_id=channel_id)
-                    logger.info(f"Found channel by ID {channel_id} for client {client_id}")
+                    channel = ClientChannel.objects.get(
+                        client=client, channel_id=channel_id, channel_type=channel_type
+                    )
+                    logger.info(
+                        f"Found channel by ID {channel_id} and channel_type {channel_type} for client {client_id}. Found channel {channel.id}"
+                    )
                     return channel
                 except DoesNotExist:
                     logger.warning(f"Channel with ID {channel_id} not found, falling back to channel_type")
                     # Fall back to channel_type if channel_id not found
 
-            # Lookup by channel_type
-            channel = ClientChannel.objects.get(client=client, channel_type=channel_type)
+            # Lookup by channel_type with channel_id as None
+            channel = ClientChannel.objects.get(client=client, channel_type=channel_type, channel_id=None)
             return channel
         except DoesNotExist as e:
             logger.error(f"Error finding channel: {e}")

@@ -1,7 +1,7 @@
 """
 Service for managing workflow configurations.
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 from app.models.mongodb.workflow_config import WorkflowConfig
 from app.core.config import settings
@@ -36,11 +36,7 @@ class WorkflowConfigService:
 
         # Try to find channel-specific config if client_channel_id is provided
         if client_channel_id:
-            config = WorkflowConfig.objects(
-                client=client_id,
-                client_channel=client_channel_id,
-                is_active=True
-            ).first()
+            config = WorkflowConfig.objects(client=client_id, client_channel=client_channel_id, is_active=True).first()
 
             if config:
                 logger.info(
@@ -50,58 +46,108 @@ class WorkflowConfigService:
                 return config.workflow_id
 
         # Fall back to client-level config
-        config = WorkflowConfig.objects(
-            client=client_id,
-            client_channel=None,
-            is_active=True
-        ).first()
+        config = WorkflowConfig.objects(client=client_id, client_channel=None, is_active=True).first()
 
         if config:
-            logger.info(
-                f"Using client-level workflow ID {config.workflow_id} for client {client_id}"
-            )
+            logger.info(f"Using client-level workflow ID {config.workflow_id} for client {client_id}")
             return config.workflow_id
 
         # Fall back to default if no config exists
         logger.info(
-            f"No workflow config found for client {client_id}. "
-            f"Using default workflow ID from environment."
+            f"No workflow config found for client {client_id}. " f"Using default workflow ID from environment."
         )
         return settings.SLACK_AI_SERVICE_WORKFLOW_ID
 
     @staticmethod
-    def create_workflow_config(config_data: Dict[str, Any]) -> WorkflowConfig:
+    def create_workflow_config(client_id: str, name: str, workflow_id: str, is_active: bool = True, client_channel_id: Optional[str] = None) -> WorkflowConfig:
         """
         Create a new workflow configuration.
 
         Args:
-            config_data: The configuration data
+            client_id: The client ID
+            workflow_id: The workflow ID
+            is_active: Whether the workflow is active
+            client_channel_id: Optional client channel ID
 
         Returns:
             The created workflow configuration
         """
-        workflow_config = WorkflowConfig(**config_data)
+        from app.models.mongodb.client import Client
+        from app.models.mongodb.client_channel import ClientChannel
+
+        try:
+            client = Client.objects.get(client_id=client_id)
+        except Exception as e:
+            logger.error(f"Failed to find client with client_id {client_id}: {str(e)}")
+            raise ValueError(f"Invalid client_id: {client_id}")
+        
+        client_channel = None
+        if client_channel_id:
+            try:
+                client_channel = ClientChannel.objects.get(id=client_channel_id)
+            except Exception as e:
+                logger.error(f"Failed to find client channel with id {client_channel_id}: {str(e)}")
+                raise ValueError(f"Invalid client_channel_id: {client_channel_id}")
+        
+        workflow_config = WorkflowConfig(
+            client=client,
+            client_channel=client_channel,
+            name=name,
+            workflow_id=workflow_id,
+            is_active=is_active
+        )
         workflow_config.save()
-        logger.info(f"Created workflow config {workflow_config.id} for client {workflow_config.client.id}")
+        logger.info(f"Created workflow config {workflow_config.id} for client {client.id}")
         return workflow_config
 
     @staticmethod
-    def update_workflow_config(config_id: str, config_data: Dict[str, Any]) -> WorkflowConfig:
+    def update_workflow_config(config_id: str, name: Optional[str] = None, workflow_id: Optional[str] = None, is_active: Optional[bool] = None, client_id: Optional[str] = None, client_channel_id: Optional[str] = None) -> WorkflowConfig:
         """
         Update an existing workflow configuration.
 
         Args:
             config_id: The ID of the configuration to update
-            config_data: The updated configuration data
+            workflow_id: Optional updated workflow ID
+            is_active: Optional updated active status
+            client_id: Optional updated client ID
+            client_channel_id: Optional updated client channel ID
 
         Returns:
             The updated workflow configuration
         """
+        from app.models.mongodb.client import Client
+        from app.models.mongodb.client_channel import ClientChannel
+        
         workflow_config = WorkflowConfig.objects.get(id=config_id)
-        
-        for key, value in config_data.items():
-            setattr(workflow_config, key, value)
-        
+
+        if name is not None:
+            workflow_config.name = name
+            
+        if workflow_id is not None:
+            workflow_config.workflow_id = workflow_id
+            
+        if is_active is not None:
+            workflow_config.is_active = is_active
+            
+        if client_id is not None:
+            try:
+                client = Client.objects.get(client_id=client_id)
+                workflow_config.client = client
+            except Exception as e:
+                logger.error(f"Failed to find client with client_id {client_id}: {str(e)}")
+                raise ValueError(f"Invalid client_id: {client_id}")
+                
+        if client_channel_id is not None:
+            if client_channel_id == "":
+                workflow_config.client_channel = None
+            else:
+                try:
+                    client_channel = ClientChannel.objects.get(id=client_channel_id)
+                    workflow_config.client_channel = client_channel
+                except Exception as e:
+                    logger.error(f"Failed to find client channel with id {client_channel_id}: {str(e)}")
+                    raise ValueError(f"Invalid client_channel_id: {client_channel_id}")
+
         workflow_config.save()
         logger.info(f"Updated workflow config {workflow_config.id}")
         return workflow_config
@@ -137,8 +183,7 @@ class WorkflowConfigService:
 
     @staticmethod
     def list_workflow_configs(
-        client_id: Optional[str] = None,
-        client_channel_id: Optional[str] = None
+        client_id: Optional[str] = None, client_channel_id: Optional[str] = None
     ) -> List[WorkflowConfig]:
         """
         List workflow configurations with optional filtering.
@@ -151,13 +196,11 @@ class WorkflowConfigService:
             List of workflow configurations matching the filters
         """
         query = {}
-        
+
         if client_id:
             query["client"] = client_id
-        
+
         if client_channel_id:
             query["client_channel"] = client_channel_id
-        
 
-        
         return WorkflowConfig.objects(**query)
