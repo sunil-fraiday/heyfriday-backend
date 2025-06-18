@@ -19,11 +19,8 @@ class Migration(BaseMigration):
         event_processor_configs = self.db.event_processor_configs
         indexes = [
             IndexModel([("client_channel", ASCENDING)]),
-            IndexModel([
-                ("client", ASCENDING), 
-                ("client_channel", ASCENDING), 
-                ("is_active", ASCENDING)
-            ]),
+            # Removed compound index as it's already defined in the model
+            # with uniqueness constraints
         ]
         
         event_processor_configs.create_indexes(indexes)
