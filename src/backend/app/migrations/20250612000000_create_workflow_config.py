@@ -17,14 +17,11 @@ class Migration(BaseMigration):
         # Create indexes
         workflow_configs = self.db.workflow_configs
         indexes = [
-            IndexModel([("client", ASCENDING)]),
-            IndexModel([("client_channel", ASCENDING)]),
-            IndexModel([("is_active", ASCENDING)]),
-            IndexModel([
-                ("client", ASCENDING), 
-                ("client_channel", ASCENDING), 
-                ("is_active", ASCENDING)
-            ]),
+            IndexModel([('client', ASCENDING)]),
+            IndexModel([('client_channel', ASCENDING)]),
+            IndexModel([('is_active', ASCENDING)]),
+            # Removed compound index as it's already defined in the model
+            # with uniqueness constraints
         ]
         
         workflow_configs.create_indexes(indexes)
