@@ -17,6 +17,10 @@ class WorkflowConfigService:
 
     @staticmethod
     def get_workflow_id(client_id: str, client_channel_id: Optional[str]) -> str:
+        return WorkflowConfigService.get_workflow_config_for_client(client_id, client_channel_id).workflow_id
+        
+    @staticmethod
+    def get_workflow_config_for_client(client_id: str, client_channel_id: Optional[str]) -> WorkflowConfig:
         """
         Get workflow ID based on client and channel with fallback mechanism:
         1. Try client-channel specific config if client_channel_id is provided
@@ -43,14 +47,14 @@ class WorkflowConfigService:
                     f"Using channel-specific workflow ID {config.workflow_id} for client {client_id}, "
                     f"channel {client_channel_id}"
                 )
-                return config.workflow_id
+                return config
 
         # Fall back to client-level config
         config = WorkflowConfig.objects(client=client_id, client_channel=None, is_active=True).first()
 
         if config:
             logger.info(f"Using client-level workflow ID {config.workflow_id} for client {client_id}")
-            return config.workflow_id
+            return config
 
         # Fall back to default if no config exists
         logger.info(
@@ -59,7 +63,7 @@ class WorkflowConfigService:
         return settings.SLACK_AI_SERVICE_WORKFLOW_ID
 
     @staticmethod
-    def create_workflow_config(client_id: str, name: str, workflow_id: str, is_active: bool = True, client_channel_id: Optional[str] = None) -> WorkflowConfig:
+    def create_workflow_config(client_id: str, name: str, workflow_id: str, is_active: bool = True, client_channel_id: Optional[str] = None, body: Optional[dict] = None) -> WorkflowConfig:
         """
         Create a new workflow configuration.
 
@@ -94,14 +98,15 @@ class WorkflowConfigService:
             client_channel=client_channel,
             name=name,
             workflow_id=workflow_id,
-            is_active=is_active
+            is_active=is_active,
+            body=body or {}
         )
         workflow_config.save()
         logger.info(f"Created workflow config {workflow_config.id} for client {client.id}")
         return workflow_config
 
     @staticmethod
-    def update_workflow_config(config_id: str, name: Optional[str] = None, workflow_id: Optional[str] = None, is_active: Optional[bool] = None, client_id: Optional[str] = None, client_channel_id: Optional[str] = None) -> WorkflowConfig:
+    def update_workflow_config(config_id: str, name: Optional[str] = None, workflow_id: Optional[str] = None, is_active: Optional[bool] = None, client_id: Optional[str] = None, client_channel_id: Optional[str] = None, body: Optional[dict] = None) -> WorkflowConfig:
         """
         Update an existing workflow configuration.
 
@@ -147,6 +152,9 @@ class WorkflowConfigService:
                 except Exception as e:
                     logger.error(f"Failed to find client channel with id {client_channel_id}: {str(e)}")
                     raise ValueError(f"Invalid client_channel_id: {client_channel_id}")
+        
+        if body is not None:
+            workflow_config.body = body
 
         workflow_config.save()
         logger.info(f"Updated workflow config {workflow_config.id}")

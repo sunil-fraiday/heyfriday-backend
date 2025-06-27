@@ -28,6 +28,7 @@ async def create_workflow_config(
             name=config.name,
             client_channel_id=config.client_channel_id,
             is_active=config.is_active,
+            body=config.body,
         )
         return WorkflowConfigResponse(
             id=str(result.id),
@@ -107,6 +108,7 @@ async def list_workflow_configs(
                 name=result.name,
                 workflow_id=result.workflow_id,
                 is_active=result.is_active,
+                body=result.body,
                 created_at=result.created_at,
                 updated_at=result.updated_at,
             )
@@ -135,6 +137,7 @@ async def update_workflow_config(
             is_active=config_update.is_active,
             client_id=config_update.client_id,
             client_channel_id=config_update.client_channel_id,
+            body=config_update.body,
         )
         if not result:
             raise HTTPException(
@@ -150,6 +153,7 @@ async def update_workflow_config(
             is_active=result.is_active,
             created_at=result.created_at,
             updated_at=result.updated_at,
+            body=result.body,
         )
     except HTTPException:
         raise

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ class WorkflowConfigBase(BaseModel):
     workflow_id: str
     name: str
     is_active: bool = True
+    body: Dict[str, Any] = {}
 
 
 class WorkflowConfigCreate(WorkflowConfigBase):
@@ -23,6 +24,7 @@ class WorkflowConfigUpdate(BaseModel):
     is_active: Optional[bool] = None
     client_id: Optional[str] = None
     client_channel_id: Optional[str] = None
+    body: Optional[Dict[str, Any]] = None
 
 
 class WorkflowConfigResponse(WorkflowConfigBase):

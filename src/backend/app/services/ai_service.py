@@ -22,22 +22,45 @@ class AIService:
             client_channel: ClientChannel = chat_message.session.client_channel
 
             if client_channel.channel_type in [ChannelType.SLACK.value, ChannelType.SUNSHINE.value]:
+                # Prepare default input args
+                input_args = {
+                    "client_id": chat_message.session.client.client_id,
+                    "user_id": str(chat_message.sender),
+                    "human_msg": chat_message.text,
+                    "session_id": str(chat_message.session.session_id),
+                    "metadata": json.dumps(chat_message.data)
+                }
+
+                if settings.ENABLE_CONFIGURABLE_WORKFLOWS:
+                    # Get workflow config to access the body field
+                    from app.services.workflow_config import WorkflowConfigService
+                    
+                    client_id = str(chat_message.session.client.id)
+                    client_channel_id = str(chat_message.session.client_channel.id) if chat_message.session.client_channel else None
+                    
+                    # Get the workflow config to access both workflow_id and body
+                    workflow_config = WorkflowConfigService.get_workflow_config_for_client(
+                        client_id=client_id,
+                        client_channel_id=client_channel_id,
+                    )
+                    
+                    # Merge with body from workflow config if available
+                    if hasattr(workflow_config, 'body') and workflow_config.body:
+                        input_args.update(workflow_config.body)
+                        logger.info(f"Merged workflow config body with input_args: {workflow_config.body}")
+
+                logger.info(f"Input args: {input_args}")   
                 response = requests.post(
                     settings.SLACK_AI_SERVICE_URL,
                     json={
                         "id": workflow_id or settings.SLACK_AI_SERVICE_WORKFLOW_ID,
-                        "input_args": {
-                            "client_id": chat_message.session.client.client_id,
-                            "user_id": str(chat_message.sender),
-                            "human_msg": chat_message.text,
-                            "session_id": str(chat_message.session.session_id),
-                            "metadata": json.dumps(chat_message.data)
-                        },
+                        "input_args": input_args,
                     },
                     headers={"Authorization": f"Basic {settings.SLACK_AI_TOKEN}"},
                 )
                 ai_response = response.json()
-                logger.info(f"AI Response: {ai_response}")
+                logger.debug(f"AI Response: {ai_response}")
+                logger.info(f"AI Response Type: {type(ai_response)}, AI response status: {ai_response.get('status')}")
 
                 return AIResponse(
                     status=ai_response["status"],

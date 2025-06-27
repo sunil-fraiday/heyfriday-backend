@@ -7,6 +7,8 @@ class WorkflowConfig(BaseDocument):
     """
     Configuration for workflow routing based on client and client channel.
     Defines which workflow ID to use for specific clients and channels.
+    The body field contains additional input arguments that will be merged with
+    the default input_args in the request payload to the AI orchestrator.
     """
 
     name = fields.StringField(required=True)
@@ -15,6 +17,7 @@ class WorkflowConfig(BaseDocument):
     client_channel = fields.ReferenceField("ClientChannel", required=False)
     workflow_id = fields.StringField(required=True)
     is_active = fields.BooleanField(default=True)
+    body = fields.DictField(default=dict)
 
     meta = {
         "collection": "workflow_configs",
