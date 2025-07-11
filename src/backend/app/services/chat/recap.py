@@ -103,7 +103,7 @@ class ChatRecapService:
             attachment_info = ""
             if msg.attachments:
                 files = [
-                    {"type": att.file_type, "name": att.file_name, "size": att.file_size, "url": att.file_url}
+                    {"type": att.file_type, "name": att.file_name, "url": att.file_url}
                     for att in msg.attachments
                 ]
                 attachment_info = f"\nAttachments: {json.dumps(files)}"
